@@ -1,57 +1,146 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Building2, Plus, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
-interface Transaction {
+interface FinanceEntry {
   id: string;
-  date: string;
-  description: string;
-  amount: number;
   type: "income" | "expense";
-  comment?: string;
+  amount: number;
+  comment: string | null;
+  created_at: string;
+  created_by: string | null;
+}
+
+interface Company {
+  id: string;
+  name: string;
 }
 
 const Finance = () => {
   const { companyId } = useParams();
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    { id: "1", date: "2025-10-05", description: "Initial Investment", amount: 50000, type: "income" },
-    { id: "2", date: "2025-10-04", description: "Office Supplies", amount: 1200, type: "expense", comment: "Desk setup" },
-    { id: "3", date: "2025-10-03", description: "Software License", amount: 299, type: "expense" },
-  ]);
-
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const [company, setCompany] = useState<Company | null>(null);
+  const [entries, setEntries] = useState<FinanceEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [newTransaction, setNewTransaction] = useState({
-    description: "",
+  const [newEntry, setNewEntry] = useState({
     amount: "",
     type: "income" as "income" | "expense",
     comment: "",
   });
 
-  const balance = transactions.reduce((acc, t) => {
-    return t.type === "income" ? acc + t.amount : acc - t.amount;
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth");
+    }
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (user && companyId) {
+      fetchData();
+    }
+  }, [user, companyId]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    
+    const { data: companyData, error: companyError } = await supabase
+      .from("companies")
+      .select("id, name")
+      .eq("id", companyId)
+      .single();
+
+    if (companyError) {
+      toast({
+        title: "Error loading company",
+        description: companyError.message,
+        variant: "destructive",
+      });
+      navigate("/");
+      return;
+    }
+
+    setCompany(companyData);
+
+    const { data: entriesData, error: entriesError } = await supabase
+      .from("finance_entries")
+      .select("*")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false });
+
+    if (entriesError) {
+      toast({
+        title: "Error loading entries",
+        description: entriesError.message,
+        variant: "destructive",
+      });
+    } else {
+      setEntries(entriesData || []);
+    }
+
+    setLoading(false);
+  };
+
+  const balance = entries.reduce((acc, entry) => {
+    return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
   }, 0);
 
-  const handleAddTransaction = () => {
-    if (!newTransaction.description || !newTransaction.amount) return;
+  const handleAddEntry = async () => {
+    if (!newEntry.amount || !user) return;
 
-    const transaction: Transaction = {
-      id: Date.now().toString(),
-      date: new Date().toISOString().split("T")[0],
-      description: newTransaction.description,
-      amount: parseFloat(newTransaction.amount),
-      type: newTransaction.type,
-      comment: newTransaction.comment || undefined,
-    };
+    const amount = parseFloat(newEntry.amount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid amount",
+        description: "Please enter a valid positive amount",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setTransactions([transaction, ...transactions]);
-    setNewTransaction({ description: "", amount: "", type: "income", comment: "" });
-    setShowForm(false);
+    const { error } = await supabase.from("finance_entries").insert([{
+      company_id: companyId,
+      type: newEntry.type,
+      amount,
+      comment: newEntry.comment || null,
+      created_by: user.id,
+    }]);
+
+    if (error) {
+      toast({
+        title: "Error adding entry",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Entry added successfully" });
+      setNewEntry({ amount: "", type: "income", comment: "" });
+      setShowForm(false);
+      fetchData();
+    }
   };
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user || !company) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -65,7 +154,7 @@ const Finance = () => {
               <Building2 className="h-8 w-8 text-primary" />
               Finance Management
             </h1>
-            <p className="text-muted-foreground">Company ID: {companyId}</p>
+            <p className="text-muted-foreground">{company.name}</p>
           </div>
           <Button onClick={() => setShowForm(!showForm)} className="gap-2">
             <Plus className="h-4 w-4" />
@@ -93,7 +182,7 @@ const Finance = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-success">
-                ${transactions.filter(t => t.type === "income").reduce((acc, t) => acc + t.amount, 0).toLocaleString()}
+                ${entries.filter(e => e.type === "income").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -106,7 +195,7 @@ const Finance = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-destructive">
-                ${transactions.filter(t => t.type === "expense").reduce((acc, t) => acc + t.amount, 0).toLocaleString()}
+                ${entries.filter(e => e.type === "expense").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -115,38 +204,28 @@ const Finance = () => {
         {showForm && (
           <Card>
             <CardHeader>
-              <CardTitle>New Transaction</CardTitle>
+              <CardTitle>New Entry</CardTitle>
               <CardDescription>Add a new income or expense record</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    placeholder="e.g., Office Rent"
-                    value={newTransaction.description}
-                    onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Amount</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    placeholder="0.00"
-                    value={newTransaction.amount}
-                    onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="amount">Amount</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={newEntry.amount}
+                  onChange={(e) => setNewEntry({ ...newEntry, amount: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="type">Type</Label>
                 <div className="flex gap-4">
                   <Button
                     type="button"
-                    variant={newTransaction.type === "income" ? "default" : "outline"}
-                    onClick={() => setNewTransaction({ ...newTransaction, type: "income" })}
+                    variant={newEntry.type === "income" ? "default" : "outline"}
+                    onClick={() => setNewEntry({ ...newEntry, type: "income" })}
                     className="flex-1"
                   >
                     <TrendingUp className="h-4 w-4 mr-2" />
@@ -154,8 +233,8 @@ const Finance = () => {
                   </Button>
                   <Button
                     type="button"
-                    variant={newTransaction.type === "expense" ? "default" : "outline"}
-                    onClick={() => setNewTransaction({ ...newTransaction, type: "expense" })}
+                    variant={newEntry.type === "expense" ? "default" : "outline"}
+                    onClick={() => setNewEntry({ ...newEntry, type: "expense" })}
                     className="flex-1"
                   >
                     <TrendingDown className="h-4 w-4 mr-2" />
@@ -164,16 +243,16 @@ const Finance = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="comment">Comment (Optional)</Label>
+                <Label htmlFor="comment">Comment</Label>
                 <Textarea
                   id="comment"
-                  placeholder="Add any notes..."
-                  value={newTransaction.comment}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, comment: e.target.value })}
+                  placeholder="Add details about this transaction..."
+                  value={newEntry.comment}
+                  onChange={(e) => setNewEntry({ ...newEntry, comment: e.target.value })}
                 />
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleAddTransaction} className="flex-1">Add Transaction</Button>
+                <Button onClick={handleAddEntry} className="flex-1">Add Entry</Button>
                 <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
               </div>
             </CardContent>
@@ -186,28 +265,34 @@ const Finance = () => {
             <CardDescription>All financial records for this company</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {transactions.map((transaction) => (
-                <div
-                  key={transaction.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className={`h-4 w-4 ${transaction.type === "income" ? "text-success" : "text-destructive"}`} />
-                      <span className="font-medium">{transaction.description}</span>
+            {entries.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No entries yet</p>
+            ) : (
+              <div className="space-y-4">
+                {entries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className={`h-4 w-4 ${entry.type === "income" ? "text-success" : "text-destructive"}`} />
+                        <span className="font-medium">{entry.type === "income" ? "Income" : "Expense"}</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {new Date(entry.created_at).toLocaleDateString()}
+                      </div>
+                      {entry.comment && (
+                        <div className="text-sm text-muted-foreground mt-1 italic">"{entry.comment}"</div>
+                      )}
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1">{transaction.date}</div>
-                    {transaction.comment && (
-                      <div className="text-sm text-muted-foreground mt-1 italic">"{transaction.comment}"</div>
-                    )}
+                    <div className={`text-xl font-bold ${entry.type === "income" ? "text-success" : "text-destructive"}`}>
+                      {entry.type === "income" ? "+" : "-"}${entry.amount.toLocaleString()}
+                    </div>
                   </div>
-                  <div className={`text-xl font-bold ${transaction.type === "income" ? "text-success" : "text-destructive"}`}>
-                    {transaction.type === "income" ? "+" : "-"}${transaction.amount.toLocaleString()}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
