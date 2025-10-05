@@ -347,8 +347,9 @@ const Orders = () => {
       return;
     }
 
-    // Create finance entry if payment was received
+    // Create finance entry based on payment status
     if (paymentReceived && paymentAmountValue > 0) {
+      // Record income when payment is received
       const { error: financeError } = await supabase
         .from("finance_entries")
         .insert({
@@ -366,13 +367,32 @@ const Orders = () => {
           variant: "destructive",
         });
       }
+    } else {
+      // Record debt as expense when payment is not received
+      const { error: financeError } = await supabase
+        .from("finance_entries")
+        .insert({
+          type: "expense",
+          amount: selectedOrderForCompletion.totalAmount,
+          company_id: selectedOrderForCompletion.companyId,
+          related_order_id: selectedOrderForCompletion.id,
+          comment: `Unpaid order - pending debt`,
+        });
+
+      if (financeError) {
+        toast({
+          title: "Order completed but finance entry failed",
+          description: financeError.message,
+          variant: "destructive",
+        });
+      }
     }
 
     toast({ 
       title: "Order completed successfully",
       description: paymentReceived 
-        ? `Payment of $${paymentAmountValue} recorded in Overall Financial records`
-        : "Order marked as pending debt in company records only (not in Overall Finance)"
+        ? `Payment of $${paymentAmountValue} recorded as income in Financial records`
+        : `Debt of $${selectedOrderForCompletion.totalAmount} recorded in Financial records`
     });
 
     setShowPaymentDialog(false);
