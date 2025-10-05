@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface FinanceEntry {
   id: string;
-  type: "income" | "expense" | "debt";
+  type: "income" | "expense";
   amount: number;
   comment: string | null;
   created_at: string;
@@ -39,7 +39,7 @@ const Finance = () => {
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [newEntry, setNewEntry] = useState({
     amount: "",
-    type: "income" as "income" | "expense" | "debt",
+    type: "income" as "income" | "expense",
     comment: "",
   });
 
@@ -96,14 +96,8 @@ const Finance = () => {
   };
 
   const balance = entries.reduce((acc, entry) => {
-    if (entry.type === "income") return acc + entry.amount;
-    if (entry.type === "expense" || entry.type === "debt") return acc - entry.amount;
-    return acc;
+    return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
   }, 0);
-
-  const totalDebt = entries
-    .filter(e => e.type === "debt")
-    .reduce((acc, e) => acc + e.amount, 0);
 
   // Get available months and years from entries
   const availableMonths = Array.from(new Set(
@@ -127,11 +121,7 @@ const Finance = () => {
     .filter(e => e.type === "expense")
     .reduce((acc, e) => acc + e.amount, 0);
 
-  const monthlyDebt = monthlyEntries
-    .filter(e => e.type === "debt")
-    .reduce((acc, e) => acc + e.amount, 0);
-
-  const monthlyBalance = monthlyIncome - monthlyExpense - monthlyDebt;
+  const monthlyBalance = monthlyIncome - monthlyExpense;
 
   // Filter entries by selected year
   const yearlyEntries = entries.filter(e => 
@@ -146,11 +136,7 @@ const Finance = () => {
     .filter(e => e.type === "expense")
     .reduce((acc, e) => acc + e.amount, 0);
 
-  const yearlyDebt = yearlyEntries
-    .filter(e => e.type === "debt")
-    .reduce((acc, e) => acc + e.amount, 0);
-
-  const yearlyBalance = yearlyIncome - yearlyExpense - yearlyDebt;
+  const yearlyBalance = yearlyIncome - yearlyExpense;
 
   // Get month name from date string
   const getMonthName = (dateString: string) => {
@@ -225,7 +211,7 @@ const Finance = () => {
           </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-3">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Current Balance</CardTitle>
@@ -253,25 +239,12 @@ const Finance = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingDown className="h-4 w-4 text-destructive" />
-                Total Expenses
+                Total Expenses/Debt
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-destructive">
                 ${entries.filter(e => e.type === "expense").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-amber-500" />
-                Total Debt
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-amber-500">
-                ${totalDebt.toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -425,7 +398,7 @@ const Finance = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="type">Type</Label>
-                <div className="flex gap-2">
+                <div className="flex gap-4">
                   <Button
                     type="button"
                     variant={newEntry.type === "income" ? "default" : "outline"}
@@ -442,16 +415,7 @@ const Finance = () => {
                     className="flex-1"
                   >
                     <TrendingDown className="h-4 w-4 mr-2" />
-                    Expense
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={newEntry.type === "debt" ? "default" : "outline"}
-                    onClick={() => setNewEntry({ ...newEntry, type: "debt" })}
-                    className="flex-1"
-                  >
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    Debt
+                    Expense/Debt
                   </Button>
                 </div>
               </div>
@@ -489,16 +453,8 @@ const Finance = () => {
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <DollarSign className={`h-4 w-4 ${
-                          entry.type === "income" ? "text-success" : 
-                          entry.type === "debt" ? "text-amber-500" : 
-                          "text-destructive"
-                        }`} />
-                        <span className="font-medium">
-                          {entry.type === "income" ? "Income" : 
-                           entry.type === "debt" ? "Debt (Unpaid Order)" : 
-                           "Expense"}
-                        </span>
+                        <DollarSign className={`h-4 w-4 ${entry.type === "income" ? "text-success" : "text-destructive"}`} />
+                        <span className="font-medium">{entry.type === "income" ? "Income" : "Expense/Debt"}</span>
                       </div>
                       <div className="text-sm text-muted-foreground mt-1">
                         {new Date(entry.created_at).toLocaleDateString()}
@@ -507,11 +463,7 @@ const Finance = () => {
                         <div className="text-sm text-muted-foreground mt-1 italic">"{entry.comment}"</div>
                       )}
                     </div>
-                    <div className={`text-xl font-bold ${
-                      entry.type === "income" ? "text-success" : 
-                      entry.type === "debt" ? "text-amber-500" : 
-                      "text-destructive"
-                    }`}>
+                    <div className={`text-xl font-bold ${entry.type === "income" ? "text-success" : "text-destructive"}`}>
                       {entry.type === "income" ? "+" : "-"}${entry.amount.toLocaleString()}
                     </div>
                   </div>
