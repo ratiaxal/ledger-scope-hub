@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Plus, Search, Package, Calendar, Trash2 } from "lucide-react";
+import { Building2, Plus, Search, Package, Calendar, Trash2, Check } from "lucide-react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -242,6 +242,27 @@ const Orders = () => {
     setShowForm(false);
     setUseCustomCompany(false);
     fetchOrders();
+  };
+
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: "open" | "completed" | "canceled") => {
+    const { error } = await supabase
+      .from("orders")
+      .update({ 
+        status: newStatus,
+        completed_at: newStatus === "completed" ? new Date().toISOString() : null
+      })
+      .eq("id", orderId);
+
+    if (error) {
+      toast({
+        title: "Error updating order",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Order status updated successfully" });
+      fetchOrders();
+    }
   };
 
   const filteredOrders = orders.filter((order) =>
@@ -487,8 +508,37 @@ const Orders = () => {
                       {order.date}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold">${order.total.toLocaleString()}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="text-2xl font-bold">${order.total.toLocaleString()}</div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {order.status !== "completed" && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleUpdateOrderStatus(order.id, "completed")}
+                          className="gap-2"
+                        >
+                          <Check className="h-4 w-4" />
+                          Mark Complete
+                        </Button>
+                      )}
+                      <Select
+                        value={order.status}
+                        onValueChange={(value: "open" | "completed" | "canceled") => 
+                          handleUpdateOrderStatus(order.id, value)
+                        }
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="canceled">Canceled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               ))}
