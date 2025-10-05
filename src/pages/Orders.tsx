@@ -38,12 +38,8 @@ interface Order {
 const Orders = () => {
   const { companyId } = useParams();
   const { toast } = useToast();
-  const [orders, setOrders] = useState<Order[]>([
-    { id: "ORD-001", date: "2025-10-05", company: "ABC Corp", items: "Office Chairs", quantity: 10, total: 2500, status: "completed" },
-    { id: "ORD-002", date: "2025-10-04", company: "XYZ LLC", items: "Laptops", quantity: 5, total: 7500, status: "pending" },
-    { id: "ORD-003", date: "2025-10-03", company: "Tech Solutions Inc", items: "Monitors", quantity: 15, total: 4500, status: "completed" },
-  ]);
-
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -58,11 +54,66 @@ const Orders = () => {
 
   const [useCustomCompany, setUseCustomCompany] = useState(false);
 
-  const registeredCompanies = ["ABC Corp", "XYZ LLC", "Tech Solutions Inc"];
-
   useEffect(() => {
     fetchProducts();
+    fetchOrders();
+    fetchCompanies();
   }, []);
+
+  const fetchCompanies = async () => {
+    const { data, error } = await supabase
+      .from("companies")
+      .select("id, name")
+      .order("name");
+
+    if (error) {
+      toast({
+        title: "Error loading companies",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setCompanies(data || []);
+    }
+  };
+
+  const fetchOrders = async () => {
+    const { data, error } = await supabase
+      .from("orders")
+      .select(`
+        *,
+        companies (name),
+        order_lines (
+          id,
+          quantity,
+          unit_price,
+          line_total,
+          products (name)
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast({
+        title: "Error loading orders",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      const formattedOrders: Order[] = (data || []).map((order: any) => ({
+        id: order.id,
+        date: new Date(order.created_at).toISOString().split("T")[0],
+        company: order.manual_company_name || order.companies?.name || "Unknown",
+        items: order.order_lines?.map((line: any) => 
+          `${line.products?.name || "Unknown"} (${line.quantity})`
+        ).join(", ") || "",
+        quantity: order.total_quantity,
+        total: parseFloat(order.total_amount),
+        status: order.status as "pending" | "completed" | "cancelled",
+      }));
+      setOrders(formattedOrders);
+    }
+  };
 
   const fetchProducts = async () => {
     const { data, error } = await supabase
@@ -130,7 +181,7 @@ const Orders = () => {
     return orderLines.reduce((sum, line) => sum + line.line_total, 0);
   };
 
-  const handleAddOrder = () => {
+  const handleAddOrder = async () => {
     if ((!newOrder.company && !newOrder.customCompany) || orderLines.length === 0) {
       toast({
         title: "Missing information",
@@ -140,22 +191,57 @@ const Orders = () => {
       return;
     }
 
-    const order: Order = {
-      id: `ORD-${String(orders.length + 1).padStart(3, "0")}`,
-      date: new Date().toISOString().split("T")[0],
-      company: useCustomCompany ? newOrder.customCompany : newOrder.company,
-      items: orderLines.map(line => `${line.product_name} (${line.quantity})`).join(", "),
-      quantity: orderLines.reduce((sum, line) => sum + line.quantity, 0),
-      total: calculateOrderTotal(),
-      status: "pending",
-    };
+    const companyName = useCustomCompany ? newOrder.customCompany : newOrder.company;
+    const selectedCompany = companies.find(c => c.name === newOrder.company);
 
-    setOrders([order, ...orders]);
+    // Insert order
+    const { data: orderData, error: orderError } = await supabase
+      .from("orders")
+      .insert([{
+        company_id: useCustomCompany ? null : selectedCompany?.id,
+        manual_company_name: useCustomCompany ? newOrder.customCompany : null,
+        total_quantity: orderLines.reduce((sum, line) => sum + line.quantity, 0),
+        total_amount: calculateOrderTotal(),
+        status: "open",
+      }])
+      .select()
+      .single();
+
+    if (orderError) {
+      toast({
+        title: "Error creating order",
+        description: orderError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Insert order lines
+    const { error: linesError } = await supabase
+      .from("order_lines")
+      .insert(orderLines.map(line => ({
+        order_id: orderData.id,
+        product_id: line.product_id,
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        line_total: line.line_total,
+      })));
+
+    if (linesError) {
+      toast({
+        title: "Error adding order items",
+        description: linesError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({ title: "Order created successfully" });
     setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "" });
     setOrderLines([]);
     setShowForm(false);
     setUseCustomCompany(false);
-    toast({ title: "Order created successfully" });
+    fetchOrders();
   };
 
   const filteredOrders = orders.filter((order) =>
@@ -252,9 +338,9 @@ const Orders = () => {
                       <SelectValue placeholder="Choose a company" />
                     </SelectTrigger>
                     <SelectContent>
-                      {registeredCompanies.map((company) => (
-                        <SelectItem key={company} value={company}>
-                          {company}
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.name}>
+                          {company.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
