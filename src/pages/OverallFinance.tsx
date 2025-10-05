@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, DollarSign, Calendar, Building2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, TrendingDown, DollarSign, Calendar, Building2, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,6 +27,7 @@ const OverallFinance = () => {
   const { toast } = useToast();
   const [entries, setEntries] = useState<FinanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [clearing, setClearing] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7));
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
 
@@ -65,6 +67,30 @@ const OverallFinance = () => {
     }
 
     setLoading(false);
+  };
+
+  const handleClearAutomatedEntries = async () => {
+    setClearing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('clear-automated-finances');
+      
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Cleared ${data.deleted_count} automated financial entries`,
+      });
+      
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to clear entries",
+        variant: "destructive",
+      });
+    } finally {
+      setClearing(false);
+    }
   };
 
   const balance = entries.reduce((acc, entry) => {
@@ -154,6 +180,15 @@ const OverallFinance = () => {
             </h1>
             <p className="text-muted-foreground">Complete financial overview across all companies</p>
           </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleClearAutomatedEntries}
+            disabled={clearing}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {clearing ? "Clearing..." : "Clear Automated Entries"}
+          </Button>
         </div>
 
         {/* Overall Summary Cards */}
