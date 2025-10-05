@@ -368,11 +368,11 @@ const Orders = () => {
         });
       }
     } else {
-      // Record debt as expense when payment is not received
+      // Record debt when payment is not received
       const { error: financeError } = await supabase
         .from("finance_entries")
         .insert({
-          type: "expense",
+          type: "debt",
           amount: selectedOrderForCompletion.totalAmount,
           company_id: selectedOrderForCompletion.companyId,
           related_order_id: selectedOrderForCompletion.id,
