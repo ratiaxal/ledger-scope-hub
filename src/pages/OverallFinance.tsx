@@ -14,6 +14,7 @@ interface FinanceEntry {
   comment: string | null;
   created_at: string;
   company_id: string | null;
+  related_order_id?: string | null;
   companies?: {
     name: string;
   };
@@ -75,7 +76,11 @@ const OverallFinance = () => {
     .reduce((acc, e) => acc + e.amount, 0);
 
   const totalExpense = entries
-    .filter(e => e.type === "expense")
+    .filter(e => e.type === "expense" && !e.related_order_id)
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const totalDebt = entries
+    .filter(e => e.type === "expense" && e.related_order_id)
     .reduce((acc, e) => acc + e.amount, 0);
 
   // Get available months and years from entries
@@ -152,7 +157,7 @@ const OverallFinance = () => {
         </div>
 
         {/* Overall Summary Cards */}
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Balance</CardTitle>
@@ -186,6 +191,19 @@ const OverallFinance = () => {
             <CardContent>
               <div className="text-3xl font-bold text-destructive">
                 ${totalExpense.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-amber-500" />
+                Unpaid Orders (Debt)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-amber-500">
+                ${totalDebt.toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -335,10 +353,18 @@ const OverallFinance = () => {
                     key={entry.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
-                    <div className="flex-1">
+                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <DollarSign className={`h-4 w-4 ${entry.type === "income" ? "text-success" : "text-destructive"}`} />
-                        <span className="font-medium">{entry.type === "income" ? "Income" : "Expense"}</span>
+                        <DollarSign className={`h-4 w-4 ${
+                          entry.type === "income" ? "text-success" : 
+                          entry.related_order_id ? "text-amber-500" : 
+                          "text-destructive"
+                        }`} />
+                        <span className="font-medium">
+                          {entry.type === "income" ? "Income" : 
+                           entry.related_order_id ? "Unpaid Order (Debt)" : 
+                           "Expense"}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                         <Building2 className="h-3 w-3" />
@@ -351,7 +377,11 @@ const OverallFinance = () => {
                         <div className="text-sm text-muted-foreground mt-1 italic">"{entry.comment}"</div>
                       )}
                     </div>
-                    <div className={`text-xl font-bold ${entry.type === "income" ? "text-success" : "text-destructive"}`}>
+                    <div className={`text-xl font-bold ${
+                      entry.type === "income" ? "text-success" : 
+                      entry.related_order_id ? "text-amber-500" : 
+                      "text-destructive"
+                    }`}>
                       {entry.type === "income" ? "+" : "-"}${entry.amount.toLocaleString()}
                     </div>
                   </div>
