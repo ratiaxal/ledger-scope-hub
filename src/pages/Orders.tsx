@@ -1,11 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Plus, Search, Package, Calendar } from "lucide-react";
+import { Building2, Plus, Search, Package, Calendar, Trash2 } from "lucide-react";
 import { useParams, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface Product {
+  id: string;
+  name: string;
+  sku: string | null;
+  unit_price: number;
+  current_stock: number;
+}
+
+interface OrderLine {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+}
 
 interface Order {
   id: string;
@@ -19,6 +37,7 @@ interface Order {
 
 const Orders = () => {
   const { companyId } = useParams();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([
     { id: "ORD-001", date: "2025-10-05", company: "ABC Corp", items: "Office Chairs", quantity: 10, total: 2500, status: "completed" },
     { id: "ORD-002", date: "2025-10-04", company: "XYZ LLC", items: "Laptops", quantity: 5, total: 7500, status: "pending" },
@@ -27,6 +46,8 @@ const Orders = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
   const [newOrder, setNewOrder] = useState({
     company: "",
     customCompany: "",
@@ -39,23 +60,102 @@ const Orders = () => {
 
   const registeredCompanies = ["ABC Corp", "XYZ LLC", "Tech Solutions Inc"];
 
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("name");
+
+    if (error) {
+      toast({
+        title: "Error loading products",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setProducts(data || []);
+    }
+  };
+
+  const handleAddProductLine = (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const existingLine = orderLines.find(line => line.product_id === productId);
+    if (existingLine) {
+      toast({
+        title: "Product already added",
+        description: "This product is already in the order",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newLine: OrderLine = {
+      product_id: product.id,
+      product_name: product.name,
+      quantity: 1,
+      unit_price: product.unit_price,
+      line_total: product.unit_price,
+    };
+
+    setOrderLines([...orderLines, newLine]);
+  };
+
+  const handleUpdateQuantity = (productId: string, quantity: number) => {
+    setOrderLines(orderLines.map(line => 
+      line.product_id === productId 
+        ? { ...line, quantity, line_total: quantity * line.unit_price }
+        : line
+    ));
+  };
+
+  const handleUpdatePrice = (productId: string, price: number) => {
+    setOrderLines(orderLines.map(line => 
+      line.product_id === productId 
+        ? { ...line, unit_price: price, line_total: line.quantity * price }
+        : line
+    ));
+  };
+
+  const handleRemoveProductLine = (productId: string) => {
+    setOrderLines(orderLines.filter(line => line.product_id !== productId));
+  };
+
+  const calculateOrderTotal = () => {
+    return orderLines.reduce((sum, line) => sum + line.line_total, 0);
+  };
+
   const handleAddOrder = () => {
-    if ((!newOrder.company && !newOrder.customCompany) || !newOrder.items || !newOrder.quantity || !newOrder.total) return;
+    if ((!newOrder.company && !newOrder.customCompany) || orderLines.length === 0) {
+      toast({
+        title: "Missing information",
+        description: "Please select a company and add at least one product",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const order: Order = {
       id: `ORD-${String(orders.length + 1).padStart(3, "0")}`,
       date: new Date().toISOString().split("T")[0],
       company: useCustomCompany ? newOrder.customCompany : newOrder.company,
-      items: newOrder.items,
-      quantity: parseInt(newOrder.quantity),
-      total: parseFloat(newOrder.total),
+      items: orderLines.map(line => `${line.product_name} (${line.quantity})`).join(", "),
+      quantity: orderLines.reduce((sum, line) => sum + line.quantity, 0),
+      total: calculateOrderTotal(),
       status: "pending",
     };
 
     setOrders([order, ...orders]);
     setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "" });
+    setOrderLines([]);
     setShowForm(false);
     setUseCustomCompany(false);
+    toast({ title: "Order created successfully" });
   };
 
   const filteredOrders = orders.filter((order) =>
@@ -172,37 +272,78 @@ const Orders = () => {
                 </div>
               )}
 
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="items">Items</Label>
-                  <Input
-                    id="items"
-                    placeholder="e.g., Office Chairs"
-                    value={newOrder.items}
-                    onChange={(e) => setNewOrder({ ...newOrder, items: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">Quantity</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    placeholder="0"
-                    value={newOrder.quantity}
-                    onChange={(e) => setNewOrder({ ...newOrder, quantity: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="total">Total ($)</Label>
-                  <Input
-                    id="total"
-                    type="number"
-                    placeholder="0.00"
-                    value={newOrder.total}
-                    onChange={(e) => setNewOrder({ ...newOrder, total: e.target.value })}
-                  />
-                </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="product">Add Product</Label>
+                <Select onValueChange={handleAddProductLine}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a product to add" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} {product.sku ? `(${product.sku})` : ""} - Stock: {product.current_stock}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+
+              {orderLines.length > 0 && (
+                <div className="space-y-3 border rounded-lg p-4">
+                  <h4 className="font-medium">Order Items</h4>
+                  {orderLines.map((line) => (
+                    <div key={line.product_id} className="grid gap-3 p-3 border rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{line.product_name}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleRemoveProductLine(line.product_id)}
+                          className="h-6 w-6 text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label htmlFor={`quantity-${line.product_id}`} className="text-xs">Quantity</Label>
+                          <Input
+                            id={`quantity-${line.product_id}`}
+                            type="number"
+                            min="1"
+                            value={line.quantity}
+                            onChange={(e) => handleUpdateQuantity(line.product_id, parseInt(e.target.value) || 1)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor={`price-${line.product_id}`} className="text-xs">Unit Price ($)</Label>
+                          <Input
+                            id={`price-${line.product_id}`}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={line.unit_price}
+                            onChange={(e) => handleUpdatePrice(line.product_id, parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Total</Label>
+                          <div className="h-10 flex items-center font-bold text-primary">
+                            ${line.line_total.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="pt-3 border-t">
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-bold">Order Total:</span>
+                      <span className="text-2xl font-bold text-primary">${calculateOrderTotal().toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button onClick={handleAddOrder} className="flex-1">Create Order</Button>
