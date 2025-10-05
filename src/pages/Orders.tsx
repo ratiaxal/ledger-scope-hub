@@ -54,6 +54,7 @@ const Orders = () => {
   });
 
   const [useCustomCompany, setUseCustomCompany] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<{
     id: string;
@@ -139,6 +140,45 @@ const Orders = () => {
       });
     } else {
       setProducts(data || []);
+    }
+  };
+
+  const handleClearAllOrders = async () => {
+    if (!companyId) {
+      toast({
+        title: "Error",
+        description: "Company ID not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!confirm("Are you sure you want to delete all orders for this company? This action cannot be undone.")) {
+      return;
+    }
+
+    setClearing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('clear-orders', {
+        body: { companyId }
+      });
+      
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Cleared ${data.deleted_count} orders`,
+      });
+      
+      fetchOrders();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to clear orders",
+        variant: "destructive",
+      });
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -445,10 +485,21 @@ const Orders = () => {
             </h1>
             <p className="text-muted-foreground">Company ID: {companyId}</p>
           </div>
-          <Button onClick={() => setShowForm(!showForm)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Order
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={handleClearAllOrders}
+              disabled={clearing}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {clearing ? "Clearing..." : "Clear All Orders"}
+            </Button>
+            <Button onClick={() => setShowForm(!showForm)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Order
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
