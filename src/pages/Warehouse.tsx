@@ -1,61 +1,110 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Package, Plus, TrendingDown, AlertTriangle, CheckCircle } from "lucide-react";
 import { useParams, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-interface InventoryItem {
+interface Product {
   id: string;
   name: string;
-  stock: number;
-  minStock: number;
-  lastUpdated: string;
+  sku: string | null;
+  unit_price: number;
+  current_stock: number;
+  created_at: string;
+  updated_at: string;
 }
 
 const Warehouse = () => {
   const { companyId } = useParams();
-  const [inventory, setInventory] = useState<InventoryItem[]>([
-    { id: "1", name: "Office Chairs", stock: 45, minStock: 20, lastUpdated: "2025-10-05" },
-    { id: "2", name: "Laptops", stock: 12, minStock: 10, lastUpdated: "2025-10-05" },
-    { id: "3", name: "Monitors", stock: 8, minStock: 15, lastUpdated: "2025-10-04" },
-    { id: "4", name: "Desks", stock: 30, minStock: 10, lastUpdated: "2025-10-03" },
-  ]);
-
+  const { toast } = useToast();
+  const [products, setProducts] = useState<Product[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [newItem, setNewItem] = useState({
     name: "",
+    sku: "",
     stock: "",
-    minStock: "",
+    price: "",
   });
 
-  const handleAddItem = () => {
-    if (!newItem.name || !newItem.stock || !newItem.minStock) return;
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
-    const item: InventoryItem = {
-      id: Date.now().toString(),
+  const fetchProducts = async () => {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast({
+        title: "Error loading products",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setProducts(data || []);
+    }
+  };
+
+  const handleAddItem = async () => {
+    if (!newItem.name || !newItem.stock || !newItem.price) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase.from("products").insert([{
       name: newItem.name,
-      stock: parseInt(newItem.stock),
-      minStock: parseInt(newItem.minStock),
-      lastUpdated: new Date().toISOString().split("T")[0],
-    };
+      sku: newItem.sku || null,
+      unit_price: parseFloat(newItem.price),
+      current_stock: parseInt(newItem.stock),
+    }]);
 
-    setInventory([...inventory, item]);
-    setNewItem({ name: "", stock: "", minStock: "" });
-    setShowForm(false);
+    if (error) {
+      toast({
+        title: "Error adding product",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Product added successfully" });
+      setNewItem({ name: "", sku: "", stock: "", price: "" });
+      setShowForm(false);
+      fetchProducts();
+    }
   };
 
-  const handleUpdateStock = (id: string, change: number) => {
-    setInventory(inventory.map(item => 
-      item.id === id 
-        ? { ...item, stock: Math.max(0, item.stock + change), lastUpdated: new Date().toISOString().split("T")[0] }
-        : item
-    ));
+  const handleUpdateStock = async (id: string, change: number) => {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+
+    const newStock = Math.max(0, product.current_stock + change);
+
+    const { error } = await supabase
+      .from("products")
+      .update({ current_stock: newStock })
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Error updating stock",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      fetchProducts();
+    }
   };
 
-  const lowStockItems = inventory.filter(item => item.stock < item.minStock);
-  const totalItems = inventory.reduce((acc, item) => acc + item.stock, 0);
+  const totalItems = products.reduce((acc, item) => acc + item.current_stock, 0);
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -77,40 +126,23 @@ const Warehouse = () => {
           </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Items</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{totalItems}</div>
-              <p className="text-xs text-muted-foreground mt-1">{inventory.length} product types</p>
+              <p className="text-xs text-muted-foreground mt-1">{products.length} product types</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-warning" />
-                Low Stock Alerts
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Products</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-warning">{lowStockItems.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">Items below minimum</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-success" />
-                Well Stocked
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-success">
-                {inventory.length - lowStockItems.length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Items at safe levels</p>
+              <div className="text-3xl font-bold">{products.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Unique products</p>
             </CardContent>
           </Card>
         </div>
@@ -122,9 +154,9 @@ const Warehouse = () => {
               <CardDescription>Register a new product in the warehouse</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Item Name</Label>
+                  <Label htmlFor="name">Product Name *</Label>
                   <Input
                     id="name"
                     placeholder="e.g., Office Chairs"
@@ -133,23 +165,35 @@ const Warehouse = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="stock">Initial Stock</Label>
+                  <Label htmlFor="sku">SKU (Optional)</Label>
                   <Input
-                    id="stock"
-                    type="number"
-                    placeholder="0"
-                    value={newItem.stock}
-                    onChange={(e) => setNewItem({ ...newItem, stock: e.target.value })}
+                    id="sku"
+                    placeholder="e.g., CH-001"
+                    value={newItem.sku}
+                    onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="minStock">Minimum Stock</Label>
+                  <Label htmlFor="price">Unit Price ($) *</Label>
                   <Input
-                    id="minStock"
+                    id="price"
                     type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={newItem.price}
+                    onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stock">Initial Stock *</Label>
+                  <Input
+                    id="stock"
+                    type="number"
+                    min="0"
                     placeholder="0"
-                    value={newItem.minStock}
-                    onChange={(e) => setNewItem({ ...newItem, minStock: e.target.value })}
+                    value={newItem.stock}
+                    onChange={(e) => setNewItem({ ...newItem, stock: e.target.value })}
                   />
                 </div>
               </div>
@@ -167,37 +211,44 @@ const Warehouse = () => {
             <CardDescription>Manage stock levels and track inventory</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {inventory.map((item) => {
-                const isLowStock = item.stock < item.minStock;
-                return (
+            {products.length === 0 ? (
+              <div className="py-12 text-center">
+                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">No products yet</h3>
+                <p className="text-muted-foreground mb-4">Get started by adding your first product</p>
+                <Button onClick={() => setShowForm(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Product
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {products.map((product) => (
                   <div
-                    key={item.id}
-                    className={`flex items-center justify-between p-4 border rounded-lg transition-colors ${
-                      isLowStock ? "border-warning bg-warning/5" : "hover:bg-muted/50"
-                    }`}
+                    key={product.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <Package className={`h-4 w-4 ${isLowStock ? "text-warning" : "text-muted-foreground"}`} />
-                        <span className="font-medium">{item.name}</span>
-                        {isLowStock && (
-                          <span className="px-2 py-0.5 bg-warning/10 text-warning text-xs rounded-full font-medium">
-                            Low Stock
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{product.name}</span>
+                        {product.sku && (
+                          <span className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full">
+                            {product.sku}
                           </span>
                         )}
                       </div>
                       <div className="text-sm text-muted-foreground mt-1">
-                        Minimum stock: {item.minStock} units
+                        Unit Price: ${product.unit_price.toFixed(2)}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        Last updated: {item.lastUpdated}
+                        Last updated: {new Date(product.updated_at).toLocaleDateString()}
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-center">
-                        <div className={`text-2xl font-bold ${isLowStock ? "text-warning" : "text-foreground"}`}>
-                          {item.stock}
+                        <div className="text-2xl font-bold">
+                          {product.current_stock}
                         </div>
                         <div className="text-xs text-muted-foreground">units</div>
                       </div>
@@ -205,24 +256,24 @@ const Warehouse = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleUpdateStock(item.id, -1)}
-                          disabled={item.stock === 0}
+                          onClick={() => handleUpdateStock(product.id, -1)}
+                          disabled={product.current_stock === 0}
                         >
                           <TrendingDown className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleUpdateStock(item.id, 1)}
+                          onClick={() => handleUpdateStock(product.id, 1)}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
