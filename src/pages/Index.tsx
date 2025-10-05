@@ -1,109 +1,247 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, TrendingUp, Package, Warehouse } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Building2, Plus, LogOut, DollarSign, Package, FileText } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface Company {
   id: string;
   name: string;
-  type: string;
-  registeredDate: string;
-  balance: number;
-  activeOrders: number;
+  registration_number: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  created_at: string;
 }
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user, loading, signOut } = useAuth();
+  const { toast } = useToast();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newCompany, setNewCompany] = useState({
+    name: "",
+    registration_number: "",
+    contact_phone: "",
+    contact_email: "",
+  });
 
-  const companies: Company[] = [
-    { id: "LLC-001", name: "TechVentures LLC", type: "Technology", registeredDate: "2024-01-15", balance: 125000, activeOrders: 12 },
-    { id: "LLC-002", name: "Green Solutions LLC", type: "Environmental", registeredDate: "2024-03-22", balance: 89500, activeOrders: 8 },
-    { id: "LLC-003", name: "Prime Logistics LLC", type: "Logistics", registeredDate: "2024-05-10", balance: 256000, activeOrders: 24 },
-  ];
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth");
+    }
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      fetchCompanies();
+    }
+  }, [user]);
+
+  const fetchCompanies = async () => {
+    const { data, error } = await supabase
+      .from("companies")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast({
+        title: "Error loading companies",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setCompanies(data || []);
+    }
+  };
+
+  const handleAddCompany = async () => {
+    if (!newCompany.name) {
+      toast({
+        title: "Company name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase.from("companies").insert([{
+      name: newCompany.name,
+      registration_number: newCompany.registration_number || null,
+      contact_phone: newCompany.contact_phone || null,
+      contact_email: newCompany.contact_email || null,
+    }]);
+
+    if (error) {
+      toast({
+        title: "Error adding company",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Company added successfully" });
+      setNewCompany({ name: "", registration_number: "", contact_phone: "", contact_email: "" });
+      setShowAddDialog(false);
+      fetchCompanies();
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-              <Building2 className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Business Manager</h1>
-              <p className="text-sm text-muted-foreground">Multi-Company Management Dashboard</p>
-            </div>
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold flex items-center gap-2">
+              <Building2 className="h-10 w-10 text-primary" />
+              Business Manager
+            </h1>
+            <p className="text-muted-foreground mt-2">Manage your companies, finances, orders, and inventory</p>
+          </div>
+          <div className="flex gap-2">
+            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Company
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Company</DialogTitle>
+                  <DialogDescription>Register a new company in the system</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Company Name *</Label>
+                    <Input
+                      id="name"
+                      value={newCompany.name}
+                      onChange={(e) => setNewCompany({ ...newCompany, name: e.target.value })}
+                      placeholder="Acme Corp"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="registration">Registration Number</Label>
+                    <Input
+                      id="registration"
+                      value={newCompany.registration_number}
+                      onChange={(e) => setNewCompany({ ...newCompany, registration_number: e.target.value })}
+                      placeholder="123456789"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Contact Phone</Label>
+                    <Input
+                      id="phone"
+                      value={newCompany.contact_phone}
+                      onChange={(e) => setNewCompany({ ...newCompany, contact_phone: e.target.value })}
+                      placeholder="+1234567890"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Contact Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={newCompany.contact_email}
+                      onChange={(e) => setNewCompany({ ...newCompany, contact_email: e.target.value })}
+                      placeholder="contact@company.com"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleAddCompany} className="flex-1">Add Company</Button>
+                    <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" onClick={handleSignOut} className="gap-2">
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
           </div>
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        <div>
-          <h2 className="text-3xl font-bold mb-2">Registered Companies</h2>
-          <p className="text-muted-foreground">Manage finance, orders, and inventory for your LLCs</p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {companies.map((company) => (
-            <Card key={company.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="flex items-center gap-2">
-                      <Building2 className="h-5 w-5 text-primary" />
-                      {company.name}
-                    </CardTitle>
-                    <CardDescription className="mt-1">{company.type} • {company.id}</CardDescription>
+        {companies.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No companies yet</h3>
+              <p className="text-muted-foreground mb-4">Get started by adding your first company</p>
+              <Button onClick={() => setShowAddDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Company
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {companies.map((company) => (
+              <Card key={company.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-primary" />
+                    {company.name}
+                  </CardTitle>
+                  <CardDescription>
+                    {company.registration_number && `Reg: ${company.registration_number}`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {company.contact_phone && (
+                    <p className="text-sm text-muted-foreground">📞 {company.contact_phone}</p>
+                  )}
+                  {company.contact_email && (
+                    <p className="text-sm text-muted-foreground">✉️ {company.contact_email}</p>
+                  )}
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+                    <Link to={`/finance/${company.id}`}>
+                      <Button variant="outline" size="sm" className="w-full gap-1">
+                        <DollarSign className="h-4 w-4" />
+                        Finance
+                      </Button>
+                    </Link>
+                    <Link to={`/orders/${company.id}`}>
+                      <Button variant="outline" size="sm" className="w-full gap-1">
+                        <FileText className="h-4 w-4" />
+                        Orders
+                      </Button>
+                    </Link>
+                    <Link to={`/warehouse/${company.id}`}>
+                      <Button variant="outline" size="sm" className="w-full gap-1">
+                        <Package className="h-4 w-4" />
+                        Stock
+                      </Button>
+                    </Link>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Balance</span>
-                    <span className="font-bold text-success">${company.balance.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Active Orders</span>
-                    <span className="font-medium">{company.activeOrders}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Registered</span>
-                    <span className="font-medium">{company.registeredDate}</span>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t space-y-2">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start gap-2"
-                    onClick={() => navigate(`/finance/${company.id}`)}
-                  >
-                    <TrendingUp className="h-4 w-4" />
-                    Finance
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start gap-2"
-                    onClick={() => navigate(`/orders/${company.id}`)}
-                  >
-                    <Package className="h-4 w-4" />
-                    Orders
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start gap-2"
-                    onClick={() => navigate(`/warehouse/${company.id}`)}
-                  >
-                    <Warehouse className="h-4 w-4" />
-                    Warehouse
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </main>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
