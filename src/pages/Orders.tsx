@@ -33,7 +33,7 @@ interface Order {
   items: string;
   quantity: number;
   total: number;
-  status: "pending" | "completed" | "cancelled";
+  status: "open" | "completed" | "canceled";
 }
 
 const Orders = () => {
@@ -119,7 +119,7 @@ const Orders = () => {
         ).join(", ") || "",
         quantity: order.total_quantity,
         total: parseFloat(order.total_amount),
-        status: order.status as "pending" | "completed" | "cancelled",
+        status: order.status as "open" | "completed" | "canceled",
       }));
       setOrders(formattedOrders);
     }
@@ -466,7 +466,7 @@ const Orders = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-warning">
-                {orders.filter(o => o.status === "pending").length}
+                {orders.filter(o => o.status === "open").length}
               </div>
             </CardContent>
           </Card>
