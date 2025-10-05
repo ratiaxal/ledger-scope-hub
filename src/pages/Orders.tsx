@@ -620,12 +620,16 @@ const Orders = () => {
           </Card>
         )}
 
+        {/* Processing Orders */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Order History</CardTitle>
-                <CardDescription>Search and view all orders</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-warning" />
+                  Processing Orders
+                </CardTitle>
+                <CardDescription>Orders awaiting completion</CardDescription>
               </div>
               <div className="relative w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -640,7 +644,10 @@ const Orders = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {filteredOrders.map((order) => (
+              {filteredOrders.filter(order => order.status !== "completed").length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No processing orders</p>
+              ) : (
+                filteredOrders.filter(order => order.status !== "completed").map((order) => (
                 <div
                   key={order.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -694,7 +701,67 @@ const Orders = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Complete Orders */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Check className="h-5 w-5 text-success" />
+              Complete Orders
+            </CardTitle>
+            <CardDescription>Completed orders history</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {filteredOrders.filter(order => order.status === "completed").length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No completed orders</p>
+              ) : (
+                filteredOrders.filter(order => order.status === "completed").map((order) => (
+                  <div
+                    key={order.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono font-bold text-primary">{order.id}</span>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
+                          Complete
+                        </span>
+                      </div>
+                      <div className="text-sm">
+                        <Building2 className="inline h-3 w-3 mr-1" />
+                        <span className="font-medium">{order.company}</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {order.items} × {order.quantity}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {order.date}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-2xl font-bold">${order.total.toLocaleString()}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteOrder(order.id)}
+                        className="gap-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
