@@ -303,6 +303,28 @@ const Orders = () => {
     setShowPaymentDialog(true);
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("orders")
+      .delete()
+      .eq("id", orderId);
+
+    if (error) {
+      toast({
+        title: "Error deleting order",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Order deleted successfully" });
+      fetchOrders();
+    }
+  };
+
   const handleConfirmOrderCompletion = async () => {
     if (!selectedOrderForCompletion) return;
 
@@ -440,7 +462,7 @@ const Orders = () => {
           </Card>
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pending Orders</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Processing Orders</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-warning">
@@ -628,10 +650,9 @@ const Orders = () => {
                       <span className="font-mono font-bold text-primary">{order.id}</span>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         order.status === "completed" ? "bg-success/10 text-success" :
-                        order.status === "pending" ? "bg-warning/10 text-warning" :
-                        "bg-destructive/10 text-destructive"
+                        "bg-warning/10 text-warning"
                       }`}>
-                        {order.status}
+                        {order.status === "completed" ? "Complete" : "Processing"}
                       </span>
                     </div>
                     <div className="text-sm">
@@ -661,21 +682,15 @@ const Orders = () => {
                           Mark Complete
                         </Button>
                       )}
-                      <Select
-                        value={order.status}
-                        onValueChange={(value: "open" | "completed" | "canceled") => 
-                          handleUpdateOrderStatus(order.id, value)
-                        }
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteOrder(order.id)}
+                        className="gap-2"
                       >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="open">Open</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="canceled">Canceled</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -755,7 +770,7 @@ const Orders = () => {
             {paymentReceived === false && (
               <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  This order will be marked as unpaid in the Financial records.
+                  This order will be marked as debt in both the company finances and overall Financial records.
                 </p>
               </div>
             )}
