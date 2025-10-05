@@ -334,6 +334,7 @@ const Orders = () => {
         completed_at: new Date().toISOString(),
         payment_status: paymentReceived ? "paid" : "unpaid",
         payment_received_amount: paymentAmountValue,
+        debt_flag: !paymentReceived,
       })
       .eq("id", selectedOrderForCompletion.id);
 
@@ -370,8 +371,8 @@ const Orders = () => {
     toast({ 
       title: "Order completed successfully",
       description: paymentReceived 
-        ? `Payment of $${paymentAmountValue} recorded in Financial records`
-        : "Order marked as unpaid in Financial records"
+        ? `Payment of $${paymentAmountValue} recorded in Overall Financial records`
+        : "Order marked as pending debt in company records only (not in Overall Finance)"
     });
 
     setShowPaymentDialog(false);
