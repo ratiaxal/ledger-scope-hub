@@ -6,9 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Plus, LogOut, DollarSign, Package, FileText } from "lucide-react";
+import { Building2, Plus, LogOut, DollarSign, Package, FileText, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface Company {
   id: string;
@@ -87,6 +88,24 @@ const Index = () => {
       toast({ title: "Company added successfully" });
       setNewCompany({ name: "", registration_number: "", contact_phone: "", contact_email: "" });
       setShowAddDialog(false);
+      fetchCompanies();
+    }
+  };
+
+  const handleDeleteCompany = async (companyId: string, companyName: string) => {
+    const { error } = await supabase
+      .from("companies")
+      .delete()
+      .eq("id", companyId);
+
+    if (error) {
+      toast({
+        title: "Error deleting company",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: `${companyName} deleted successfully` });
       fetchCompanies();
     }
   };
@@ -201,13 +220,38 @@ const Index = () => {
             {companies.map((company) => (
               <Card key={company.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-primary" />
-                    {company.name}
-                  </CardTitle>
-                  <CardDescription>
-                    {company.registration_number && `Reg: ${company.registration_number}`}
-                  </CardDescription>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-primary" />
+                        {company.name}
+                      </CardTitle>
+                      <CardDescription>
+                        {company.registration_number && `Reg: ${company.registration_number}`}
+                      </CardDescription>
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Company</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{company.name}"? This action cannot be undone and will remove all associated data.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteCompany(company.id, company.name)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {company.contact_phone && (
