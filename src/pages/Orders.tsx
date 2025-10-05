@@ -348,20 +348,49 @@ const Orders = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from("orders")
-      .delete()
-      .eq("id", orderId);
+    try {
+      // Delete related records first
+      
+      // 1. Delete order lines
+      const { error: linesError } = await supabase
+        .from("order_lines")
+        .delete()
+        .eq("order_id", orderId);
+      
+      if (linesError) throw linesError;
 
-    if (error) {
-      toast({
-        title: "Error deleting order",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
+      // 2. Delete related finance entries
+      const { error: financeError } = await supabase
+        .from("finance_entries")
+        .delete()
+        .eq("related_order_id", orderId);
+      
+      if (financeError) throw financeError;
+
+      // 3. Delete related inventory transactions
+      const { error: inventoryError } = await supabase
+        .from("inventory_transactions")
+        .delete()
+        .eq("related_order_id", orderId);
+      
+      if (inventoryError) throw inventoryError;
+
+      // 4. Finally delete the order
+      const { error: orderError } = await supabase
+        .from("orders")
+        .delete()
+        .eq("id", orderId);
+
+      if (orderError) throw orderError;
+
       toast({ title: "Order deleted successfully" });
       fetchOrders();
+    } catch (error) {
+      toast({
+        title: "Error deleting order",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
     }
   };
 
