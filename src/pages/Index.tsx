@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Plus, LogOut, DollarSign, Package, FileText, Trash2 } from "lucide-react";
+import { Building2, Plus, LogOut, DollarSign, Package, FileText, Trash2, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -202,6 +202,27 @@ const Index = () => {
             </Button>
           </div>
         </div>
+
+        {/* Overall Financials Card */}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-6 w-6 text-primary" />
+              Overall Financials
+            </CardTitle>
+            <CardDescription>
+              View complete financial overview across all companies
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link to="/overall-finance">
+              <Button className="w-full gap-2">
+                <DollarSign className="h-4 w-4" />
+                View Overall Financials
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
 
         {companies.length === 0 ? (
           <Card>
