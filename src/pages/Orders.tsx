@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Plus, Search, Package, Calendar, Trash2, Check } from "lucide-react";
+import { Building2, Plus, Search, Package, Calendar, Trash2, Check, DollarSign } from "lucide-react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Product {
   id: string;
@@ -53,6 +54,15 @@ const Orders = () => {
   });
 
   const [useCustomCompany, setUseCustomCompany] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<{
+    id: string;
+    companyId: string | null;
+    totalAmount: number;
+  } | null>(null);
+  const [paymentReceived, setPaymentReceived] = useState<boolean | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
 
   useEffect(() => {
     fetchProducts();
@@ -263,6 +273,113 @@ const Orders = () => {
       toast({ title: "Order status updated successfully" });
       fetchOrders();
     }
+  };
+
+  const handleInitiateOrderCompletion = async (orderId: string) => {
+    // Fetch full order details
+    const { data: orderData, error } = await supabase
+      .from("orders")
+      .select("id, company_id, total_amount")
+      .eq("id", orderId)
+      .single();
+
+    if (error || !orderData) {
+      toast({
+        title: "Error loading order details",
+        description: error?.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedOrderForCompletion({
+      id: orderData.id,
+      companyId: orderData.company_id,
+      totalAmount: Number(orderData.total_amount),
+    });
+    setPaymentAmount(String(orderData.total_amount));
+    setPaymentReceived(null);
+    setPaymentMethod("");
+    setShowPaymentDialog(true);
+  };
+
+  const handleConfirmOrderCompletion = async () => {
+    if (!selectedOrderForCompletion) return;
+
+    if (paymentReceived === null) {
+      toast({
+        title: "Please select payment status",
+        description: "Indicate whether payment was received",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (paymentReceived && (!paymentAmount || !paymentMethod)) {
+      toast({
+        title: "Missing payment details",
+        description: "Please enter payment amount and method",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const paymentAmountValue = paymentReceived ? parseFloat(paymentAmount) : 0;
+
+    // Update order with payment information
+    const { error: orderError } = await supabase
+      .from("orders")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        payment_status: paymentReceived ? "paid" : "unpaid",
+        payment_received_amount: paymentAmountValue,
+      })
+      .eq("id", selectedOrderForCompletion.id);
+
+    if (orderError) {
+      toast({
+        title: "Error completing order",
+        description: orderError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create finance entry if payment was received
+    if (paymentReceived && paymentAmountValue > 0) {
+      const { error: financeError } = await supabase
+        .from("finance_entries")
+        .insert({
+          type: "income",
+          amount: paymentAmountValue,
+          company_id: selectedOrderForCompletion.companyId,
+          related_order_id: selectedOrderForCompletion.id,
+          comment: `Payment received via ${paymentMethod} for completed order`,
+        });
+
+      if (financeError) {
+        toast({
+          title: "Order completed but finance entry failed",
+          description: financeError.message,
+          variant: "destructive",
+        });
+      }
+    }
+
+    toast({ 
+      title: "Order completed successfully",
+      description: paymentReceived 
+        ? `Payment of $${paymentAmountValue} recorded in Financial records`
+        : "Order marked as unpaid in Financial records"
+    });
+
+    setShowPaymentDialog(false);
+    setSelectedOrderForCompletion(null);
+    setPaymentReceived(null);
+    setPaymentAmount("");
+    setPaymentMethod("");
+    fetchOrders();
   };
 
   const filteredOrders = orders.filter((order) =>
@@ -516,7 +633,7 @@ const Orders = () => {
                       {order.status !== "completed" && (
                         <Button
                           size="sm"
-                          onClick={() => handleUpdateOrderStatus(order.id, "completed")}
+                          onClick={() => handleInitiateOrderCompletion(order.id)}
                           className="gap-2"
                         >
                           <Check className="h-4 w-4" />
@@ -546,6 +663,94 @@ const Orders = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete Order - Payment Confirmation</DialogTitle>
+            <DialogDescription>
+              Was payment received for this order?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Payment Status</Label>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant={paymentReceived === true ? "default" : "outline"}
+                  onClick={() => setPaymentReceived(true)}
+                  className="flex-1"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Payment Received
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentReceived === false ? "default" : "outline"}
+                  onClick={() => setPaymentReceived(false)}
+                  className="flex-1"
+                >
+                  Unpaid
+                </Button>
+              </div>
+            </div>
+
+            {paymentReceived === true && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentAmount">Payment Amount ($)</Label>
+                  <Input
+                    id="paymentAmount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Enter payment amount"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="paymentMethod">Payment Method</Label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="credit_card">Credit Card</SelectItem>
+                      <SelectItem value="debit_card">Debit Card</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="check">Check</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            {paymentReceived === false && (
+              <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  This order will be marked as unpaid in the Financial records.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmOrderCompletion}>
+              <DollarSign className="h-4 w-4 mr-2" />
+              Complete Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
