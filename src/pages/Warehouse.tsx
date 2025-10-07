@@ -45,6 +45,12 @@ const Warehouse = () => {
   const [selectedCompany, setSelectedCompany] = useState("");
   const [customCompanyName, setCustomCompanyName] = useState("");
   const [useCustomCompany, setUseCustomCompany] = useState(false);
+  const [manualProductEntry, setManualProductEntry] = useState(false);
+  const [manualProduct, setManualProduct] = useState({
+    name: "",
+    price: "",
+    quantity: "1",
+  });
 
   useEffect(() => {
     fetchProducts();
@@ -163,6 +169,44 @@ const Warehouse = () => {
     setOrderLines([...orderLines, newLine]);
   };
 
+  const handleAddManualProduct = () => {
+    if (!manualProduct.name.trim()) {
+      toast({
+        title: "Product name required",
+        description: "Please enter a product name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!manualProduct.price || parseFloat(manualProduct.price) <= 0) {
+      toast({
+        title: "Valid price required",
+        description: "Please enter a valid purchase price",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const quantity = parseInt(manualProduct.quantity) || 1;
+    const unitPrice = parseFloat(manualProduct.price);
+
+    const newLine: OrderLine = {
+      product_id: `manual-${Date.now()}`, // Temporary ID for manual entries
+      product_name: manualProduct.name,
+      quantity: quantity,
+      unit_price: unitPrice,
+      line_total: quantity * unitPrice,
+    };
+
+    setOrderLines([...orderLines, newLine]);
+    setManualProduct({ name: "", price: "", quantity: "1" });
+    toast({
+      title: "Product added to order",
+      description: `${manualProduct.name} added successfully`,
+    });
+  };
+
   const handleUpdateOrderLine = (productId: string, field: 'quantity' | 'unit_price', value: number) => {
     setOrderLines(orderLines.map(line => {
       if (line.product_id === productId) {
@@ -232,14 +276,44 @@ const Warehouse = () => {
       return;
     }
 
-    // Create order lines
-    const orderLinesData = orderLines.map(line => ({
-      order_id: orderData.id,
-      product_id: line.product_id,
-      quantity: line.quantity,
-      unit_price: line.unit_price,
-      line_total: line.line_total,
-    }));
+    // For manual product entries, we need to create products first or handle them differently
+    const orderLinesData = [];
+    
+    for (const line of orderLines) {
+      let productId = line.product_id;
+      
+      // If it's a manual entry (temporary ID), create the product first
+      if (line.product_id.startsWith('manual-')) {
+        const { data: newProduct, error: productError } = await supabase
+          .from("products")
+          .insert([{
+            name: line.product_name,
+            unit_price: line.unit_price,
+            current_stock: 0, // Manual order entries don't add to stock
+          }])
+          .select()
+          .single();
+
+        if (productError) {
+          toast({
+            title: "Error creating product",
+            description: productError.message,
+            variant: "destructive",
+          });
+          continue;
+        }
+
+        productId = newProduct.id;
+      }
+
+      orderLinesData.push({
+        order_id: orderData.id,
+        product_id: productId,
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        line_total: line.line_total,
+      });
+    }
 
     const { error: linesError } = await supabase
       .from("order_lines")
@@ -264,7 +338,10 @@ const Warehouse = () => {
     setSelectedCompany("");
     setCustomCompanyName("");
     setUseCustomCompany(false);
+    setManualProductEntry(false);
+    setManualProduct({ name: "", price: "", quantity: "1" });
     setShowOrderDialog(false);
+    fetchProducts(); // Refresh products list if new ones were added
   };
 
   const totalItems = products.reduce((acc, item) => acc + item.current_stock, 0);
@@ -497,19 +574,90 @@ const Warehouse = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Add Products</Label>
-                <Select onValueChange={handleAddProductToOrder}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a product to add" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - ${product.unit_price.toFixed(2)} (Stock: {product.current_stock})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2 mb-2">
+                  <Button
+                    variant={!manualProductEntry ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setManualProductEntry(false)}
+                  >
+                    Select Existing
+                  </Button>
+                  <Button
+                    variant={manualProductEntry ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setManualProductEntry(true)}
+                  >
+                    Enter Manually
+                  </Button>
+                </div>
+
+                {!manualProductEntry ? (
+                  <>
+                    <Label>Select Product</Label>
+                    <Select onValueChange={handleAddProductToOrder}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a product to add" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} - ${product.unit_price.toFixed(2)} (Stock: {product.current_stock})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
+                ) : (
+                  <div className="space-y-3 border rounded-lg p-4">
+                    <Label>Enter Product Details</Label>
+                    <div className="grid gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="manual-product-name" className="text-xs">
+                          Product Name *
+                        </Label>
+                        <Input
+                          id="manual-product-name"
+                          placeholder="Enter product name"
+                          value={manualProduct.name}
+                          onChange={(e) => setManualProduct({ ...manualProduct, name: e.target.value })}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label htmlFor="manual-product-price" className="text-xs">
+                            Purchase Price ($) *
+                          </Label>
+                          <Input
+                            id="manual-product-price"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            value={manualProduct.price}
+                            onChange={(e) => setManualProduct({ ...manualProduct, price: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="manual-product-quantity" className="text-xs">
+                            Quantity *
+                          </Label>
+                          <Input
+                            id="manual-product-quantity"
+                            type="number"
+                            min="1"
+                            placeholder="1"
+                            value={manualProduct.quantity}
+                            onChange={(e) => setManualProduct({ ...manualProduct, quantity: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <Button onClick={handleAddManualProduct} className="w-full">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add to Order
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {orderLines.length > 0 && (
