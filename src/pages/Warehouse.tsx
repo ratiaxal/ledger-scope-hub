@@ -3,10 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Package, Plus, TrendingDown, AlertTriangle, CheckCircle } from "lucide-react";
+import { Package, Plus, TrendingDown, ShoppingCart, Trash2 } from "lucide-react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Product {
   id: string;
@@ -18,21 +20,53 @@ interface Product {
   updated_at: string;
 }
 
+interface OrderLine {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+}
+
 const Warehouse = () => {
   const { companyId } = useParams();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [showOrderDialog, setShowOrderDialog] = useState(false);
   const [newItem, setNewItem] = useState({
     name: "",
     sku: "",
     stock: "",
     price: "",
   });
+  const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState("");
+  const [customCompanyName, setCustomCompanyName] = useState("");
+  const [useCustomCompany, setUseCustomCompany] = useState(false);
 
   useEffect(() => {
     fetchProducts();
+    fetchCompanies();
   }, []);
+
+  const fetchCompanies = async () => {
+    const { data, error } = await supabase
+      .from("companies")
+      .select("id, name")
+      .order("name");
+
+    if (error) {
+      toast({
+        title: "Error loading companies",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setCompanies(data || []);
+    }
+  };
 
   const fetchProducts = async () => {
     const { data, error } = await supabase
@@ -104,6 +138,135 @@ const Warehouse = () => {
     }
   };
 
+  const handleAddProductToOrder = (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const existingLine = orderLines.find(line => line.product_id === productId);
+    if (existingLine) {
+      toast({
+        title: "Product already added",
+        description: "This product is already in the order",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newLine: OrderLine = {
+      product_id: product.id,
+      product_name: product.name,
+      quantity: 1,
+      unit_price: product.unit_price,
+      line_total: product.unit_price,
+    };
+
+    setOrderLines([...orderLines, newLine]);
+  };
+
+  const handleUpdateOrderLine = (productId: string, field: 'quantity' | 'unit_price', value: number) => {
+    setOrderLines(orderLines.map(line => {
+      if (line.product_id === productId) {
+        const updatedLine = { ...line, [field]: value };
+        updatedLine.line_total = updatedLine.quantity * updatedLine.unit_price;
+        return updatedLine;
+      }
+      return line;
+    }));
+  };
+
+  const handleRemoveOrderLine = (productId: string) => {
+    setOrderLines(orderLines.filter(line => line.product_id !== productId));
+  };
+
+  const handleCreateOrder = async () => {
+    if (orderLines.length === 0) {
+      toast({
+        title: "No products selected",
+        description: "Please add at least one product to the order",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!useCustomCompany && !selectedCompany) {
+      toast({
+        title: "No company selected",
+        description: "Please select a company or enter a custom name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (useCustomCompany && !customCompanyName.trim()) {
+      toast({
+        title: "No company name",
+        description: "Please enter a company name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const totalQuantity = orderLines.reduce((sum, line) => sum + line.quantity, 0);
+    const totalAmount = orderLines.reduce((sum, line) => sum + line.line_total, 0);
+
+    // Create order
+    const { data: orderData, error: orderError } = await supabase
+      .from("orders")
+      .insert([{
+        company_id: useCustomCompany ? null : selectedCompany,
+        manual_company_name: useCustomCompany ? customCompanyName : null,
+        total_quantity: totalQuantity,
+        total_amount: totalAmount,
+        status: "open",
+        payment_status: "unpaid",
+      }])
+      .select()
+      .single();
+
+    if (orderError) {
+      toast({
+        title: "Error creating order",
+        description: orderError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create order lines
+    const orderLinesData = orderLines.map(line => ({
+      order_id: orderData.id,
+      product_id: line.product_id,
+      quantity: line.quantity,
+      unit_price: line.unit_price,
+      line_total: line.line_total,
+    }));
+
+    const { error: linesError } = await supabase
+      .from("order_lines")
+      .insert(orderLinesData);
+
+    if (linesError) {
+      toast({
+        title: "Error creating order lines",
+        description: linesError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Order created successfully",
+      description: `Order with ${orderLines.length} products created`,
+    });
+
+    // Reset form
+    setOrderLines([]);
+    setSelectedCompany("");
+    setCustomCompanyName("");
+    setUseCustomCompany(false);
+    setShowOrderDialog(false);
+  };
+
   const totalItems = products.reduce((acc, item) => acc + item.current_stock, 0);
 
   return (
@@ -120,10 +283,16 @@ const Warehouse = () => {
             </h1>
             <p className="text-muted-foreground">Company ID: {companyId}</p>
           </div>
-          <Button onClick={() => setShowForm(!showForm)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Item
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setShowOrderDialog(true)} variant="default" className="gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              Create Order
+            </Button>
+            <Button onClick={() => setShowForm(!showForm)} variant="outline" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Item
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
@@ -276,6 +445,141 @@ const Warehouse = () => {
             )}
           </CardContent>
         </Card>
+
+        <Dialog open={showOrderDialog} onOpenChange={setShowOrderDialog}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Order</DialogTitle>
+              <DialogDescription>
+                Select products and specify quantities to create an order
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Company</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={!useCustomCompany ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setUseCustomCompany(false)}
+                  >
+                    Select Company
+                  </Button>
+                  <Button
+                    variant={useCustomCompany ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setUseCustomCompany(true)}
+                  >
+                    Custom Name
+                  </Button>
+                </div>
+                {!useCustomCompany ? (
+                  <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    placeholder="Enter company name"
+                    value={customCompanyName}
+                    onChange={(e) => setCustomCompanyName(e.target.value)}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Add Products</Label>
+                <Select onValueChange={handleAddProductToOrder}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a product to add" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} - ${product.unit_price.toFixed(2)} (Stock: {product.current_stock})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {orderLines.length > 0 && (
+                <div className="space-y-3">
+                  <Label>Order Items</Label>
+                  <div className="border rounded-lg divide-y">
+                    {orderLines.map((line) => (
+                      <div key={line.product_id} className="p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{line.product_name}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveOrderLine(line.product_id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Quantity</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={line.quantity}
+                              onChange={(e) => handleUpdateOrderLine(line.product_id, 'quantity', parseInt(e.target.value) || 1)}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Unit Price ($)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={line.unit_price}
+                              onChange={(e) => handleUpdateOrderLine(line.product_id, 'unit_price', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Total</Label>
+                            <Input
+                              type="text"
+                              value={`$${line.line_total.toFixed(2)}`}
+                              disabled
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="font-medium">Order Total</span>
+                    <span className="text-xl font-bold">
+                      ${orderLines.reduce((sum, line) => sum + line.line_total, 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowOrderDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateOrder}>
+                Create Order
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
