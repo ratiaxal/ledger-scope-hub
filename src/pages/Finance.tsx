@@ -26,6 +26,15 @@ interface Company {
   name: string;
 }
 
+interface SupplierSummary {
+  company_id: string | null;
+  company_name: string;
+  total_items: number;
+  total_amount: number;
+  amount_paid: number;
+  outstanding_debt: number;
+}
+
 const Finance = () => {
   const { companyId } = useParams();
   const navigate = useNavigate();
@@ -33,6 +42,7 @@ const Finance = () => {
   const { toast } = useToast();
   const [company, setCompany] = useState<Company | null>(null);
   const [entries, setEntries] = useState<FinanceEntry[]>([]);
+  const [supplierSummaries, setSupplierSummaries] = useState<SupplierSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7));
@@ -92,7 +102,61 @@ const Finance = () => {
       setEntries(entriesData || []);
     }
 
+    // Fetch supplier summaries from orders
+    await fetchSupplierSummaries();
+
     setLoading(false);
+  };
+
+  const fetchSupplierSummaries = async () => {
+    const { data: ordersData, error: ordersError } = await supabase
+      .from("orders")
+      .select(`
+        id,
+        company_id,
+        manual_company_name,
+        total_quantity,
+        total_amount,
+        payment_received_amount,
+        companies (name)
+      `)
+      .eq("status", "completed");
+
+    if (ordersError) {
+      toast({
+        title: "Error loading supplier data",
+        description: ordersError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Group orders by company and calculate summaries
+    const summaryMap = new Map<string, SupplierSummary>();
+
+    ordersData?.forEach((order: any) => {
+      const companyKey = order.company_id || `manual-${order.manual_company_name}`;
+      const companyName = order.companies?.name || order.manual_company_name || "Unknown Supplier";
+
+      if (!summaryMap.has(companyKey)) {
+        summaryMap.set(companyKey, {
+          company_id: order.company_id,
+          company_name: companyName,
+          total_items: 0,
+          total_amount: 0,
+          amount_paid: 0,
+          outstanding_debt: 0,
+        });
+      }
+
+      const summary = summaryMap.get(companyKey)!;
+      summary.total_items += order.total_quantity;
+      summary.total_amount += parseFloat(order.total_amount);
+      summary.amount_paid += parseFloat(order.payment_received_amount);
+      summary.outstanding_debt = summary.total_amount - summary.amount_paid;
+    });
+
+    setSupplierSummaries(Array.from(summaryMap.values()));
   };
 
   const balance = entries.reduce((acc, entry) => {
@@ -249,6 +313,64 @@ const Finance = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Supplier Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Supplier Purchase Summary
+            </CardTitle>
+            <CardDescription>Overview of purchases from all suppliers</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {supplierSummaries.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No completed orders yet
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {supplierSummaries.map((supplier, index) => (
+                  <div
+                    key={index}
+                    className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-lg">{supplier.company_name}</h3>
+                      {supplier.outstanding_debt > 0 && (
+                        <span className="px-2 py-1 bg-destructive/10 text-destructive text-xs rounded-full">
+                          Outstanding Debt
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Total Items</div>
+                        <div className="text-xl font-bold">{supplier.total_items}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Total Spent</div>
+                        <div className="text-xl font-bold">${supplier.total_amount.toFixed(2)}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Amount Paid</div>
+                        <div className="text-xl font-bold text-success">
+                          ${supplier.amount_paid.toFixed(2)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Outstanding Debt</div>
+                        <div className={`text-xl font-bold ${supplier.outstanding_debt > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          ${supplier.outstanding_debt.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Monthly Summary */}
         <Card>
