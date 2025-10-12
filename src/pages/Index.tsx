@@ -203,26 +203,49 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Overall Financials Card */}
-        <Card className="bg-primary/5 border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-6 w-6 text-primary" />
-              Overall Financials
-            </CardTitle>
-            <CardDescription>
-              View complete financial overview across all companies
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link to="/overall-finance">
-              <Button className="w-full gap-2">
-                <DollarSign className="h-4 w-4" />
-                View Overall Financials
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Overall Financials Card */}
+          <Card className="bg-primary/5 border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-6 w-6 text-primary" />
+                Overall Financials
+              </CardTitle>
+              <CardDescription>
+                View complete financial overview across all companies
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/overall-finance">
+                <Button className="w-full gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  View Overall Financials
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          {/* Shared Warehouse Card */}
+          <Card className="bg-primary/5 border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-6 w-6 text-primary" />
+                Shared Warehouse
+              </CardTitle>
+              <CardDescription>
+                Manage inventory for all companies
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/warehouse">
+                <Button className="w-full gap-2">
+                  <Package className="h-4 w-4" />
+                  View Warehouse
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
 
         {companies.length === 0 ? (
           <Card>
@@ -281,7 +304,7 @@ const Index = () => {
                   {company.contact_email && (
                     <p className="text-sm text-muted-foreground">✉️ {company.contact_email}</p>
                   )}
-                  <div className="grid grid-cols-3 gap-2 mt-4">
+                  <div className="grid grid-cols-2 gap-2 mt-4">
                     <Link to={`/finance/${company.id}`}>
                       <Button variant="outline" size="sm" className="w-full gap-1">
                         <DollarSign className="h-4 w-4" />
@@ -292,12 +315,6 @@ const Index = () => {
                       <Button variant="outline" size="sm" className="w-full gap-1">
                         <FileText className="h-4 w-4" />
                         Orders
-                      </Button>
-                    </Link>
-                    <Link to={`/warehouse/${company.id}`}>
-                      <Button variant="outline" size="sm" className="w-full gap-1">
-                        <Package className="h-4 w-4" />
-                        Stock
                       </Button>
                     </Link>
                   </div>

@@ -27,7 +27,7 @@ const App = () => (
             <Route path="/overall-finance" element={<OverallFinance />} />
             <Route path="/finance/:companyId" element={<Finance />} />
             <Route path="/orders/:companyId" element={<Orders />} />
-            <Route path="/warehouse/:companyId" element={<Warehouse />} />
+            <Route path="/warehouse" element={<Warehouse />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

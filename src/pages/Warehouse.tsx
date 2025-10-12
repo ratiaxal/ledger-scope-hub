@@ -29,7 +29,6 @@ interface OrderLine {
 }
 
 const Warehouse = () => {
-  const { companyId } = useParams();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
@@ -356,9 +355,9 @@ const Warehouse = () => {
             </Link>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Package className="h-8 w-8 text-primary" />
-              Warehouse & Inventory
+              Shared Warehouse & Inventory
             </h1>
-            <p className="text-muted-foreground">Company ID: {companyId}</p>
+            <p className="text-muted-foreground">Manage products for all companies</p>
           </div>
           <div className="flex gap-2">
             <Button onClick={() => setShowOrderDialog(true)} variant="default" className="gap-2">
