@@ -829,6 +829,14 @@ const Orders = () => {
                         </Button>
                         <Button
                           size="sm"
+                          variant="outline"
+                          onClick={() => handleUpdateOrderStatus(order.id, "canceled")}
+                          className="gap-2"
+                        >
+                          Cancel Order
+                        </Button>
+                        <Button
+                          size="sm"
                           variant="destructive"
                           onClick={() => handleDeleteOrder(order.id)}
                           className="gap-2"
@@ -837,6 +845,65 @@ const Orders = () => {
                           Delete
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Canceled Orders */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Canceled Orders
+            </CardTitle>
+            <CardDescription>Orders that have been canceled</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {filteredOrders.filter(order => order.status === "canceled").length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No canceled orders</p>
+              ) : (
+                filteredOrders.filter(order => order.status === "canceled").map((order) => (
+                  <div
+                    key={order.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors opacity-60"
+                  >
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono font-bold text-primary">{order.id}</span>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
+                          Canceled
+                        </span>
+                      </div>
+                      <div className="text-sm">
+                        <Building2 className="inline h-3 w-3 mr-1" />
+                        <span className="font-medium">{order.company}</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {order.items}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {order.date}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-2xl font-bold">${order.total.toLocaleString()}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteOrder(order.id)}
+                        className="gap-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 ))
