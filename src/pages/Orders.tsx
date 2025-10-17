@@ -9,6 +9,7 @@ import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Product {
   id: string;
@@ -45,6 +46,7 @@ const Orders = () => {
   const [showForm, setShowForm] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [newOrder, setNewOrder] = useState({
     company: "",
     customCompany: "",
@@ -190,29 +192,64 @@ const Orders = () => {
     }
   };
 
-  const handleAddProductLine = (productId: string) => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
+  const handleToggleProduct = (productId: string) => {
+    const newSelected = new Set(selectedProducts);
+    if (newSelected.has(productId)) {
+      newSelected.delete(productId);
+    } else {
+      newSelected.add(productId);
+    }
+    setSelectedProducts(newSelected);
+  };
 
-    const existingLine = orderLines.find(line => line.product_id === productId);
-    if (existingLine) {
+  const handleAddSelectedProducts = () => {
+    if (selectedProducts.size === 0) {
       toast({
-        title: "Product already added",
-        description: "This product is already in the order",
+        title: "No products selected",
+        description: "Please select at least one product to add",
         variant: "destructive",
       });
       return;
     }
 
-    const newLine: OrderLine = {
-      product_id: product.id,
-      product_name: product.name,
-      quantity: 1,
-      unit_price: product.unit_price,
-      line_total: product.unit_price,
-    };
+    const newLines: OrderLine[] = [];
+    const alreadyAdded: string[] = [];
 
-    setOrderLines([...orderLines, newLine]);
+    selectedProducts.forEach(productId => {
+      const product = products.find(p => p.id === productId);
+      if (!product) return;
+
+      const existingLine = orderLines.find(line => line.product_id === productId);
+      if (existingLine) {
+        alreadyAdded.push(product.name);
+        return;
+      }
+
+      newLines.push({
+        product_id: product.id,
+        product_name: product.name,
+        quantity: 1,
+        unit_price: product.unit_price,
+        line_total: product.unit_price,
+      });
+    });
+
+    if (newLines.length > 0) {
+      setOrderLines([...orderLines, ...newLines]);
+      setSelectedProducts(new Set());
+      toast({
+        title: "Products added",
+        description: `${newLines.length} product(s) added to the order`,
+      });
+    }
+
+    if (alreadyAdded.length > 0) {
+      toast({
+        title: "Some products already added",
+        description: `${alreadyAdded.join(", ")} already in the order`,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleUpdateQuantity = (productId: string, quantity: number) => {
@@ -297,6 +334,7 @@ const Orders = () => {
     toast({ title: "Order created successfully" });
     setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "" });
     setOrderLines([]);
+    setSelectedProducts(new Set());
     setShowForm(false);
     setUseCustomCompany(false);
     fetchOrders();
@@ -883,20 +921,57 @@ const Orders = () => {
               )}
 
 
-              <div className="space-y-2">
-                <Label htmlFor="product">Add Product</Label>
-                <Select onValueChange={handleAddProductLine}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a product to add" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} {product.sku ? `(${product.sku})` : ""} - Stock: {product.current_stock}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Select Products</Label>
+                  <Button 
+                    type="button"
+                    onClick={handleAddSelectedProducts}
+                    disabled={selectedProducts.size === 0}
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Selected ({selectedProducts.size})
+                  </Button>
+                </div>
+                <div className="border rounded-lg max-h-64 overflow-y-auto">
+                  {products.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground">
+                      No products available
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {products.map((product) => {
+                        const isAlreadyAdded = orderLines.some(line => line.product_id === product.id);
+                        return (
+                          <div
+                            key={product.id}
+                            className={`flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors ${
+                              isAlreadyAdded ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                            }`}
+                            onClick={() => !isAlreadyAdded && handleToggleProduct(product.id)}
+                          >
+                            <Checkbox
+                              checked={selectedProducts.has(product.id)}
+                              onCheckedChange={() => !isAlreadyAdded && handleToggleProduct(product.id)}
+                              disabled={isAlreadyAdded}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{product.name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {product.sku && `SKU: ${product.sku} • `}
+                                Stock: {product.current_stock} • ${product.unit_price.toFixed(2)}
+                              </div>
+                            </div>
+                            {isAlreadyAdded && (
+                              <span className="text-xs text-muted-foreground">Already added</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {orderLines.length > 0 && (
