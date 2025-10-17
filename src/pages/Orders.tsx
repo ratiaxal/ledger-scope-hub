@@ -64,6 +64,14 @@ const Orders = () => {
   const [paymentReceived, setPaymentReceived] = useState<boolean | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [selectedOrderForReturn, setSelectedOrderForReturn] = useState<{
+    id: string;
+    companyId: string | null;
+    totalAmount: number;
+    paymentReceived: number;
+  } | null>(null);
+  const [returnLines, setReturnLines] = useState<OrderLine[]>([]);
 
   useEffect(() => {
     fetchProducts();
@@ -388,6 +396,200 @@ const Orders = () => {
     } catch (error) {
       toast({
         title: "Error deleting order",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleInitiateReturn = async (orderId: string) => {
+    // Fetch full order details
+    const { data: orderData, error: orderError } = await supabase
+      .from("orders")
+      .select("id, company_id, total_amount, payment_received_amount")
+      .eq("id", orderId)
+      .single();
+
+    if (orderError || !orderData) {
+      toast({
+        title: "Error loading order details",
+        description: orderError?.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Fetch order lines
+    const { data: orderLinesData, error: linesError } = await supabase
+      .from("order_lines")
+      .select(`
+        id,
+        product_id,
+        quantity,
+        unit_price,
+        line_total,
+        products (name)
+      `)
+      .eq("order_id", orderId);
+
+    if (linesError) {
+      toast({
+        title: "Error loading order items",
+        description: linesError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const formattedLines: OrderLine[] = (orderLinesData || []).map((line: any) => ({
+      product_id: line.product_id,
+      product_name: line.products?.name || "Unknown",
+      quantity: 0, // Start with 0, user will input return quantity
+      unit_price: line.unit_price,
+      line_total: 0,
+    }));
+
+    setSelectedOrderForReturn({
+      id: orderData.id,
+      companyId: orderData.company_id,
+      totalAmount: Number(orderData.total_amount),
+      paymentReceived: Number(orderData.payment_received_amount),
+    });
+    setReturnLines(formattedLines);
+    setShowReturnDialog(true);
+  };
+
+  const handleUpdateReturnQuantity = (productId: string, quantity: number) => {
+    setReturnLines(returnLines.map(line => 
+      line.product_id === productId 
+        ? { ...line, quantity, line_total: quantity * line.unit_price }
+        : line
+    ));
+  };
+
+  const calculateReturnTotal = () => {
+    return returnLines.reduce((sum, line) => sum + line.line_total, 0);
+  };
+
+  const handleConfirmReturn = async () => {
+    if (!selectedOrderForReturn) return;
+
+    const returnTotal = calculateReturnTotal();
+    if (returnTotal === 0) {
+      toast({
+        title: "No items to return",
+        description: "Please specify quantities for items to return",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Fetch current order lines
+      const { data: currentOrderLines, error: fetchError } = await supabase
+        .from("order_lines")
+        .select("id, product_id, quantity, unit_price, line_total")
+        .eq("order_id", selectedOrderForReturn.id);
+
+      if (fetchError) throw fetchError;
+
+      // Update order lines with returned quantities
+      for (const returnLine of returnLines.filter(l => l.quantity > 0)) {
+        const currentLine = currentOrderLines?.find(l => l.product_id === returnLine.product_id);
+        if (!currentLine) continue;
+
+        const newQuantity = currentLine.quantity - returnLine.quantity;
+        
+        if (newQuantity <= 0) {
+          // Delete line if quantity is 0 or negative
+          await supabase
+            .from("order_lines")
+            .delete()
+            .eq("id", currentLine.id);
+        } else {
+          // Update line with reduced quantity
+          await supabase
+            .from("order_lines")
+            .update({
+              quantity: newQuantity,
+              line_total: newQuantity * currentLine.unit_price,
+            })
+            .eq("id", currentLine.id);
+        }
+
+        // Add stock back to inventory
+        const { data: productData } = await supabase
+          .from("products")
+          .select("current_stock")
+          .eq("id", returnLine.product_id)
+          .single();
+
+        if (productData) {
+          await supabase
+            .from("products")
+            .update({ current_stock: productData.current_stock + returnLine.quantity })
+            .eq("id", returnLine.product_id);
+
+          // Create inventory transaction record
+          await supabase
+            .from("inventory_transactions")
+            .insert([{
+              product_id: returnLine.product_id,
+              change_quantity: returnLine.quantity,
+              reason: "correction",
+              related_order_id: selectedOrderForReturn.id,
+              comment: "Stock returned from order",
+            }]);
+        }
+      }
+
+      // Calculate new order total
+      const newTotalAmount = selectedOrderForReturn.totalAmount - returnTotal;
+      const remainingDebt = Math.max(0, newTotalAmount - selectedOrderForReturn.paymentReceived);
+
+      // Update order with new totals and debt status
+      const { data: updatedOrderLines } = await supabase
+        .from("order_lines")
+        .select("quantity")
+        .eq("order_id", selectedOrderForReturn.id);
+
+      const totalQuantity = (updatedOrderLines || []).reduce((sum, line) => sum + line.quantity, 0);
+
+      await supabase
+        .from("orders")
+        .update({
+          total_quantity: totalQuantity,
+          total_amount: newTotalAmount,
+          debt_flag: remainingDebt > 0,
+          payment_status: remainingDebt > 0 ? "unpaid" : "paid",
+        })
+        .eq("id", selectedOrderForReturn.id);
+
+      // Create finance entry for the return
+      if (selectedOrderForReturn.companyId) {
+        await supabase
+          .from("finance_entries")
+          .insert([{
+            company_id: selectedOrderForReturn.companyId,
+            type: "expense",
+            amount: -returnTotal, // Negative because it's a return
+            comment: `Return for order ${selectedOrderForReturn.id}`,
+            related_order_id: selectedOrderForReturn.id,
+          }]);
+      }
+
+      toast({
+        title: "Return processed successfully",
+        description: `Returned items worth $${returnTotal.toFixed(2)}${remainingDebt > 0 ? `. Debt: $${remainingDebt.toFixed(2)}` : ""}`,
+      });
+
+      setShowReturnDialog(false);
+      setSelectedOrderForReturn(null);
+      setReturnLines([]);
+      fetchOrders();
+    } catch (error) {
+      toast({
+        title: "Error processing return",
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
@@ -954,15 +1156,25 @@ const Orders = () => {
                       <div className="text-right">
                         <div className="text-2xl font-bold">${order.total.toLocaleString()}</div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDeleteOrder(order.id)}
-                        className="gap-2"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                      </Button>
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleInitiateReturn(order.id)}
+                          className="gap-2"
+                        >
+                          Return Items
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteOrder(order.id)}
+                          className="gap-2"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -1055,6 +1267,76 @@ const Orders = () => {
             <Button onClick={handleConfirmOrderCompletion}>
               <DollarSign className="h-4 w-4 mr-2" />
               Complete Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Return Items from Order</DialogTitle>
+            <DialogDescription>
+              Select products and quantities to return. Stock will be added back to inventory.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {returnLines.map((line) => (
+              <div key={line.product_id} className="grid gap-3 p-3 border rounded-lg">
+                <div className="font-medium">{line.product_name}</div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor={`return-quantity-${line.product_id}`} className="text-xs">Return Quantity</Label>
+                    <Input
+                      id={`return-quantity-${line.product_id}`}
+                      type="number"
+                      min="0"
+                      value={line.quantity}
+                      onChange={(e) => handleUpdateReturnQuantity(line.product_id, parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Unit Price</Label>
+                    <div className="h-10 flex items-center font-medium">
+                      ${line.unit_price.toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Return Total</Label>
+                    <div className="h-10 flex items-center font-bold text-primary">
+                      ${line.line_total.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {returnLines.length > 0 && (
+              <div className="pt-3 border-t">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-bold">Total Return Amount:</span>
+                  <span className="text-2xl font-bold text-primary">${calculateReturnTotal().toFixed(2)}</span>
+                </div>
+                {selectedOrderForReturn && (
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    <p>Original Order Total: ${selectedOrderForReturn.totalAmount.toFixed(2)}</p>
+                    <p>Payment Received: ${selectedOrderForReturn.paymentReceived.toFixed(2)}</p>
+                    <p className="font-bold text-foreground mt-1">
+                      New Debt: ${Math.max(0, selectedOrderForReturn.totalAmount - calculateReturnTotal() - selectedOrderForReturn.paymentReceived).toFixed(2)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReturnDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmReturn}>
+              Process Return
             </Button>
           </DialogFooter>
         </DialogContent>
