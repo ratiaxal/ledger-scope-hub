@@ -203,7 +203,7 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-3">
           {/* Overall Financials Card */}
           <Card className="bg-primary/5 border-primary/20">
             <CardHeader>
@@ -220,6 +220,27 @@ const Index = () => {
                 <Button className="w-full gap-2">
                   <DollarSign className="h-4 w-4" />
                   View Overall Financials
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          {/* Sold Products Card */}
+          <Card className="bg-primary/5 border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-6 w-6 text-primary" />
+                Sold Products
+              </CardTitle>
+              <CardDescription>
+                Track sales, returns, and revenue for all products
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/sold-products">
+                <Button className="w-full gap-2">
+                  <FileText className="h-4 w-4" />
+                  View Sold Products
                 </Button>
               </Link>
             </CardContent>
