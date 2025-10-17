@@ -157,7 +157,7 @@ const OverallFinance = () => {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
+        <div className="text-lg">იტვირთება...</div>
       </div>
     );
   }
@@ -172,13 +172,13 @@ const OverallFinance = () => {
         <div className="flex items-center justify-between">
           <div>
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground mb-2 inline-block">
-              ← Back to Dashboard
+              ← უკან მთავარზე
             </Link>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <DollarSign className="h-8 w-8 text-primary" />
-              Overall Financials
+              ზოგადი ფინანსები
             </h1>
-            <p className="text-muted-foreground">Complete financial overview across all companies</p>
+            <p className="text-muted-foreground">სრული ფინანსური მიმოხილვა ყველა კომპანიაში</p>
           </div>
           <Button
             variant="destructive"
@@ -187,7 +187,7 @@ const OverallFinance = () => {
             disabled={clearing}
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            {clearing ? "Clearing..." : "Clear Automated Entries"}
+            {clearing ? "იშლება..." : "ავტომატური ჩანაწერების გასუფთავება"}
           </Button>
         </div>
 
@@ -195,7 +195,7 @@ const OverallFinance = () => {
         <div className="grid gap-6 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Balance</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">სრული ბალანსი</CardTitle>
             </CardHeader>
             <CardContent>
               <div className={`text-3xl font-bold ${balance >= 0 ? "text-success" : "text-destructive"}`}>
@@ -207,7 +207,7 @@ const OverallFinance = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-success" />
-                Total Income
+                სრული შემოსავალი
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -220,7 +220,7 @@ const OverallFinance = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingDown className="h-4 w-4 text-destructive" />
-                Total Expenses
+                სრული ხარჯები
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -233,7 +233,7 @@ const OverallFinance = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-amber-500" />
-                Unpaid Orders (Debt)
+                გადაუხდელი შეკვეთები (ვალი)
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -251,9 +251,9 @@ const OverallFinance = () => {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
-                  Monthly Summary
+                  თვიური შეჯამება
                 </CardTitle>
-                <CardDescription>Income and expenses across all companies by month</CardDescription>
+                <CardDescription>შემოსავალი და ხარჯები ყველა კომპანიაში თვის მიხედვით</CardDescription>
               </div>
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger className="w-48">
@@ -280,7 +280,7 @@ const OverallFinance = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <TrendingUp className="h-4 w-4 text-success" />
-                  Income
+                  შემოსავალი
                 </div>
                 <div className="text-2xl font-bold text-success">
                   ${monthlyIncome.toLocaleString()}
@@ -289,7 +289,7 @@ const OverallFinance = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <TrendingDown className="h-4 w-4 text-destructive" />
-                  Expenses
+                  ხარჯები
                 </div>
                 <div className="text-2xl font-bold text-destructive">
                   ${monthlyExpense.toLocaleString()}
@@ -298,7 +298,7 @@ const OverallFinance = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <DollarSign className="h-4 w-4" />
-                  Balance
+                  ბალანსი
                 </div>
                 <div className={`text-2xl font-bold ${monthlyBalance >= 0 ? "text-success" : "text-destructive"}`}>
                   ${monthlyBalance.toLocaleString()}
@@ -315,9 +315,9 @@ const OverallFinance = () => {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
-                  Yearly Summary
+                  წლიური შეჯამება
                 </CardTitle>
-                <CardDescription>Annual income and expenses across all companies</CardDescription>
+                <CardDescription>წლიური შემოსავალი და ხარჯები ყველა კომპანიაში</CardDescription>
               </div>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
                 <SelectTrigger className="w-32">
@@ -344,7 +344,7 @@ const OverallFinance = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <TrendingUp className="h-4 w-4 text-success" />
-                  Income
+                  შემოსავალი
                 </div>
                 <div className="text-2xl font-bold text-success">
                   ${yearlyIncome.toLocaleString()}
@@ -353,7 +353,7 @@ const OverallFinance = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <TrendingDown className="h-4 w-4 text-destructive" />
-                  Expenses
+                  ხარჯები
                 </div>
                 <div className="text-2xl font-bold text-destructive">
                   ${yearlyExpense.toLocaleString()}
@@ -362,7 +362,7 @@ const OverallFinance = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <DollarSign className="h-4 w-4" />
-                  Balance
+                  ბალანსი
                 </div>
                 <div className={`text-2xl font-bold ${yearlyBalance >= 0 ? "text-success" : "text-destructive"}`}>
                   ${yearlyBalance.toLocaleString()}
@@ -375,12 +375,12 @@ const OverallFinance = () => {
         {/* Transaction History */}
         <Card>
           <CardHeader>
-            <CardTitle>All Transactions</CardTitle>
-            <CardDescription>Complete financial history across all companies</CardDescription>
+            <CardTitle>ყველა ტრანზაქცია</CardTitle>
+            <CardDescription>სრული ფინანსური ისტორია ყველა კომპანიაში</CardDescription>
           </CardHeader>
           <CardContent>
             {entries.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No transactions yet</p>
+              <p className="text-center text-muted-foreground py-8">ჯერ არ არის ტრანზაქციები</p>
             ) : (
               <div className="space-y-4">
                 {entries.map((entry) => (
@@ -396,14 +396,14 @@ const OverallFinance = () => {
                           "text-destructive"
                         }`} />
                         <span className="font-medium">
-                          {entry.type === "income" ? "Income" : 
-                           entry.related_order_id ? "Unpaid Order (Debt)" : 
-                           "Expense"}
+                          {entry.type === "income" ? "შემოსავალი" : 
+                           entry.related_order_id ? "გადაუხდელი შეკვეთა (ვალი)" : 
+                           "ხარჯი"}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                         <Building2 className="h-3 w-3" />
-                        <span>{entry.companies?.name || "Unknown Company"}</span>
+                        <span>{entry.companies?.name || "უცნობი კომპანია"}</span>
                       </div>
                       <div className="text-sm text-muted-foreground mt-1">
                         {new Date(entry.created_at).toLocaleDateString()}

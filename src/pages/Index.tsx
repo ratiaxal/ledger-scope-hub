@@ -118,7 +118,7 @@ const Index = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
+        <div className="text-lg">იტვირთება...</div>
       </div>
     );
   }
@@ -134,26 +134,26 @@ const Index = () => {
           <div>
             <h1 className="text-4xl font-bold flex items-center gap-2">
               <Building2 className="h-10 w-10 text-primary" />
-              Business Manager
+              ბიზნეს მენეჯერი
             </h1>
-            <p className="text-muted-foreground mt-2">Manage your companies, finances, orders, and inventory</p>
+            <p className="text-muted-foreground mt-2">მართეთ თქვენი კომპანიები, ფინანსები, შეკვეთები და ინვენტარი</p>
           </div>
           <div className="flex gap-2">
             <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
                   <Plus className="h-4 w-4" />
-                  Add Company
+                  კომპანიის დამატება
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Add New Company</DialogTitle>
-                  <DialogDescription>Register a new company in the system</DialogDescription>
+                  <DialogTitle>ახალი კომპანიის დამატება</DialogTitle>
+                  <DialogDescription>დარეგისტრირეთ ახალი კომპანია სისტემაში</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Company Name *</Label>
+                    <Label htmlFor="name">კომპანიის სახელი *</Label>
                     <Input
                       id="name"
                       value={newCompany.name}
@@ -162,7 +162,7 @@ const Index = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="registration">Registration Number</Label>
+                    <Label htmlFor="registration">რეგისტრაციის ნომერი</Label>
                     <Input
                       id="registration"
                       value={newCompany.registration_number}
@@ -171,7 +171,7 @@ const Index = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Contact Phone</Label>
+                    <Label htmlFor="phone">საკონტაქტო ტელეფონი</Label>
                     <Input
                       id="phone"
                       value={newCompany.contact_phone}
@@ -180,7 +180,7 @@ const Index = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Contact Email</Label>
+                    <Label htmlFor="email">საკონტაქტო ელ-ფოსტა</Label>
                     <Input
                       id="email"
                       type="email"
@@ -190,15 +190,15 @@ const Index = () => {
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={handleAddCompany} className="flex-1">Add Company</Button>
-                    <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+                    <Button onClick={handleAddCompany} className="flex-1">კომპანიის დამატება</Button>
+                    <Button variant="outline" onClick={() => setShowAddDialog(false)}>გაუქმება</Button>
                   </div>
                 </div>
               </DialogContent>
             </Dialog>
             <Button variant="outline" onClick={handleSignOut} className="gap-2">
               <LogOut className="h-4 w-4" />
-              Sign Out
+              გასვლა
             </Button>
           </div>
         </div>
@@ -209,17 +209,17 @@ const Index = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-6 w-6 text-primary" />
-                Overall Financials
+                ზოგადი ფინანსები
               </CardTitle>
               <CardDescription>
-                View complete financial overview across all companies
+                იხილეთ სრული ფინანსური მიმოხილვა ყველა კომპანიაში
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Link to="/overall-finance">
                 <Button className="w-full gap-2">
                   <DollarSign className="h-4 w-4" />
-                  View Overall Financials
+                  ზოგადი ფინანსების ნახვა
                 </Button>
               </Link>
             </CardContent>
@@ -230,17 +230,17 @@ const Index = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-6 w-6 text-primary" />
-                Sold Products
+                გაყიდული პროდუქტები
               </CardTitle>
               <CardDescription>
-                Track sales, returns, and revenue for all products
+                თვალი ადევნეთ გაყიდვებს, დაბრუნებებს და შემოსავალს ყველა პროდუქტზე
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Link to="/sold-products">
                 <Button className="w-full gap-2">
                   <FileText className="h-4 w-4" />
-                  View Sold Products
+                  გაყიდული პროდუქტების ნახვა
                 </Button>
               </Link>
             </CardContent>
@@ -251,17 +251,17 @@ const Index = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-6 w-6 text-primary" />
-                Shared Warehouse
+                საერთო საწყობი
               </CardTitle>
               <CardDescription>
-                Manage inventory for all companies
+                მართეთ ინვენტარი ყველა კომპანიისთვის
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Link to="/warehouse">
                 <Button className="w-full gap-2">
                   <Package className="h-4 w-4" />
-                  View Warehouse
+                  საწყობის ნახვა
                 </Button>
               </Link>
             </CardContent>
@@ -272,11 +272,11 @@ const Index = () => {
           <Card>
             <CardContent className="py-12 text-center">
               <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No companies yet</h3>
-              <p className="text-muted-foreground mb-4">Get started by adding your first company</p>
+              <h3 className="text-lg font-medium mb-2">ჯერ არ არის კომპანიები</h3>
+              <p className="text-muted-foreground mb-4">დაიწყეთ თქვენი პირველი კომპანიის დამატებით</p>
               <Button onClick={() => setShowAddDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Company
+                კომპანიის დამატება
               </Button>
             </CardContent>
           </Card>
@@ -292,7 +292,7 @@ const Index = () => {
                         {company.name}
                       </CardTitle>
                       <CardDescription>
-                        {company.registration_number && `Reg: ${company.registration_number}`}
+                        {company.registration_number && `რეგ: ${company.registration_number}`}
                       </CardDescription>
                     </div>
                     <AlertDialog>
@@ -303,15 +303,15 @@ const Index = () => {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Company</AlertDialogTitle>
+                          <AlertDialogTitle>კომპანიის წაშლა</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Are you sure you want to delete "{company.name}"? This action cannot be undone and will remove all associated data.
+                            დარწმუნებული ხართ, რომ გსურთ "{company.name}"-ის წაშლა? ეს მოქმედება შეუქცევადია და წაშლის ყველა დაკავშირებულ მონაცემს.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel>გაუქმება</AlertDialogCancel>
                           <AlertDialogAction onClick={() => handleDeleteCompany(company.id, company.name)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Delete
+                            წაშლა
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -329,13 +329,13 @@ const Index = () => {
                     <Link to={`/finance/${company.id}`}>
                       <Button variant="outline" size="sm" className="w-full gap-1">
                         <DollarSign className="h-4 w-4" />
-                        Finance
+                        ფინანსები
                       </Button>
                     </Link>
                     <Link to={`/orders/${company.id}`}>
                       <Button variant="outline" size="sm" className="w-full gap-1">
                         <FileText className="h-4 w-4" />
-                        Orders
+                        შეკვეთები
                       </Button>
                     </Link>
                   </div>

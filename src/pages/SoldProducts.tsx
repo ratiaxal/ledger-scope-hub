@@ -217,7 +217,7 @@ const SoldProducts = () => {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
+        <div className="text-lg">იტვირთება...</div>
       </div>
     );
   }
@@ -232,13 +232,13 @@ const SoldProducts = () => {
         <div className="flex items-center justify-between">
           <div>
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground mb-2 inline-block">
-              ← Back to Dashboard
+              ← უკან მთავარზე
             </Link>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Package className="h-8 w-8 text-primary" />
-              Sold Products Overview
+              გაყიდული პროდუქტების მიმოხილვა
             </h1>
-            <p className="text-muted-foreground">Track sales, returns, and revenue for all products</p>
+            <p className="text-muted-foreground">თვალი ადევნეთ გაყიდვებს, დაბრუნებებს და შემოსავალს ყველა პროდუქტზე</p>
           </div>
         </div>
 
@@ -246,7 +246,7 @@ const SoldProducts = () => {
         <div className="grid gap-6 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Items Sold</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">სულ გაყიდული ერთეული</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-primary">
@@ -258,7 +258,7 @@ const SoldProducts = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingDown className="h-4 w-4 text-warning" />
-                Items Returned
+                დაბრუნებული ერთეული
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -271,7 +271,7 @@ const SoldProducts = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-success" />
-                Net Items Sold
+                წმინდა გაყიდული
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -284,7 +284,7 @@ const SoldProducts = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-primary" />
-                Total Revenue
+                სრული შემოსავალი
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -302,9 +302,9 @@ const SoldProducts = () => {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
-                  Monthly Summary
+                  თვიური შეჯამება
                 </CardTitle>
-                <CardDescription>Sales and returns by month</CardDescription>
+                <CardDescription>გაყიდვები და დაბრუნებები თვის მიხედვით</CardDescription>
               </div>
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger className="w-48">
@@ -331,7 +331,7 @@ const SoldProducts = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <Package className="h-4 w-4 text-primary" />
-                  Items Sold
+                  გაყიდული ერთეული
                 </div>
                 <div className="text-2xl font-bold text-primary">
                   {monthlySold.toLocaleString()}
@@ -340,7 +340,7 @@ const SoldProducts = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <DollarSign className="h-4 w-4 text-success" />
-                  Revenue
+                  შემოსავალი
                 </div>
                 <div className="text-2xl font-bold text-success">
                   ${monthlyRevenue.toLocaleString()}
@@ -357,9 +357,9 @@ const SoldProducts = () => {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
-                  Yearly Summary
+                  წლიური შეჯამება
                 </CardTitle>
-                <CardDescription>Annual sales performance</CardDescription>
+                <CardDescription>წლიური გაყიდვების შედეგები</CardDescription>
               </div>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
                 <SelectTrigger className="w-32">
@@ -386,7 +386,7 @@ const SoldProducts = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <Package className="h-4 w-4 text-primary" />
-                  Items Sold
+                  გაყიდული ერთეული
                 </div>
                 <div className="text-2xl font-bold text-primary">
                   {yearlySold.toLocaleString()}
@@ -395,7 +395,7 @@ const SoldProducts = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <DollarSign className="h-4 w-4 text-success" />
-                  Revenue
+                  შემოსავალი
                 </div>
                 <div className="text-2xl font-bold text-success">
                   ${yearlyRevenue.toLocaleString()}
@@ -408,22 +408,22 @@ const SoldProducts = () => {
         {/* Products Summary Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Products Summary</CardTitle>
-            <CardDescription>Detailed breakdown by product</CardDescription>
+            <CardTitle>პროდუქტების შეჯამება</CardTitle>
+            <CardDescription>დეტალური ანალიზი პროდუქტების მიხედვით</CardDescription>
           </CardHeader>
           <CardContent>
             {productSales.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No sales data yet</p>
+              <p className="text-center text-muted-foreground py-8">ჯერ არ არის გაყიდვების მონაცემები</p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product Name</TableHead>
-                    <TableHead className="text-right">Total Sold</TableHead>
-                    <TableHead className="text-right">Returned</TableHead>
-                    <TableHead className="text-right">Net Sold</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
-                    <TableHead className="text-right">Net Revenue</TableHead>
+                    <TableHead>პროდუქტის სახელი</TableHead>
+                    <TableHead className="text-right">სულ გაყიდული</TableHead>
+                    <TableHead className="text-right">დაბრუნებული</TableHead>
+                    <TableHead className="text-right">წმინდა გაყიდული</TableHead>
+                    <TableHead className="text-right">შემოსავალი</TableHead>
+                    <TableHead className="text-right">წმინდა შემოსავალი</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -456,12 +456,12 @@ const SoldProducts = () => {
         {/* Recent Transactions */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent Sales Transactions</CardTitle>
-            <CardDescription>Latest product sales across all companies</CardDescription>
+            <CardTitle>ბოლო გაყიდვების ტრანზაქციები</CardTitle>
+            <CardDescription>უახლესი პროდუქტების გაყიდვები ყველა კომპანიაში</CardDescription>
           </CardHeader>
           <CardContent>
             {transactions.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No transactions yet</p>
+              <p className="text-center text-muted-foreground py-8">ჯერ არ არის ტრანზაქციები</p>
             ) : (
               <div className="space-y-4">
                 {transactions.slice(0, 20).map((transaction) => (
@@ -475,7 +475,7 @@ const SoldProducts = () => {
                         <span className="font-medium">{transaction.product_name}</span>
                       </div>
                       <div className="text-sm text-muted-foreground mt-1">
-                        Company: {transaction.company_name}
+                        კომპანია: {transaction.company_name}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {new Date(transaction.created_at).toLocaleDateString()} • {transaction.quantity} items @ ${transaction.unit_price.toFixed(2)}

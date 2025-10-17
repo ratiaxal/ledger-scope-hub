@@ -77,16 +77,16 @@ const Auth = () => {
           <div className="flex justify-center mb-4">
             <Building2 className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl">{isLogin ? "Welcome Back" : "Create Account"}</CardTitle>
+          <CardTitle className="text-2xl">{isLogin ? "კეთილი იყოს თქვენი დაბრუნება" : "ანგარიშის შექმნა"}</CardTitle>
           <CardDescription>
-            {isLogin ? "Sign in to manage your companies" : "Sign up to get started"}
+            {isLogin ? "შედით სისტემაში თქვენი კომპანიების მართვისთვის" : "დარეგისტრირდით დასაწყებად"}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
+                <Label htmlFor="fullName">სრული სახელი</Label>
                 <Input
                   id="fullName"
                   type="text"
@@ -98,7 +98,7 @@ const Auth = () => {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">ელ-ფოსტა</Label>
               <Input
                 id="email"
                 type="email"
@@ -109,7 +109,7 @@ const Auth = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">პაროლი</Label>
               <Input
                 id="password"
                 type="password"
@@ -121,7 +121,7 @@ const Auth = () => {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Please wait..." : isLogin ? "Sign In" : "Sign Up"}
+              {loading ? "გთხოვთ დაელოდოთ..." : isLogin ? "შესვლა" : "რეგისტრაცია"}
             </Button>
           </form>
           <div className="mt-4 text-center">
@@ -130,7 +130,7 @@ const Auth = () => {
               onClick={() => setIsLogin(!isLogin)}
               className="text-sm text-muted-foreground hover:text-foreground"
             >
-              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+              {isLogin ? "არ გაქვთ ანგარიში? დარეგისტრირდით" : "უკვე გაქვთ ანგარიში? შედით"}
             </button>
           </div>
         </CardContent>

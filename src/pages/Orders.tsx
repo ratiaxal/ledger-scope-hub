@@ -855,11 +855,11 @@ const Orders = () => {
         <div className="flex items-center justify-between">
           <div>
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground mb-2 inline-block">
-              ← Back to Dashboard
+              ← უკან მთავარზე
             </Link>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Package className="h-8 w-8 text-primary" />
-              Orders Management
+              შეკვეთების მართვა
             </h1>
             <p className="text-muted-foreground">Company ID: {companyId}</p>
           </div>
@@ -871,11 +871,11 @@ const Orders = () => {
               disabled={clearing}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              {clearing ? "Clearing..." : "Clear All Orders"}
+              {clearing ? "იშლება..." : "ყველა შეკვეთის გასუფთავება"}
             </Button>
             <Button onClick={() => setShowForm(!showForm)} className="gap-2">
               <Plus className="h-4 w-4" />
-              New Order
+              ახალი შეკვეთა
             </Button>
           </div>
         </div>

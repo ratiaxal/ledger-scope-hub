@@ -246,7 +246,7 @@ const Finance = () => {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
+        <div className="text-lg">იტვირთება...</div>
       </div>
     );
   }
@@ -261,24 +261,24 @@ const Finance = () => {
         <div className="flex items-center justify-between">
           <div>
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground mb-2 inline-block">
-              ← Back to Dashboard
+              ← უკან მთავარზე
             </Link>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Building2 className="h-8 w-8 text-primary" />
-              Finance Management
+              ფინანსური მენეჯმენტი
             </h1>
             <p className="text-muted-foreground">{company.name}</p>
           </div>
           <Button onClick={() => setShowForm(!showForm)} className="gap-2">
             <Plus className="h-4 w-4" />
-            Add Transaction
+            ტრანზაქციის დამატება
           </Button>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Current Balance</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">მიმდინარე ბალანსი</CardTitle>
             </CardHeader>
             <CardContent>
               <div className={`text-3xl font-bold ${balance >= 0 ? "text-success" : "text-destructive"}`}>
@@ -290,7 +290,7 @@ const Finance = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-success" />
-                Total Income
+                სრული შემოსავალი
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -303,7 +303,7 @@ const Finance = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingDown className="h-4 w-4 text-destructive" />
-                Total Expenses/Debt
+                სრული ხარჯები/ვალი
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -319,14 +319,14 @@ const Finance = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
-              Supplier Purchase Summary
+              მიმწოდებლებისგან შესყიდვების შეჯამება
             </CardTitle>
-            <CardDescription>Overview of purchases from all suppliers</CardDescription>
+            <CardDescription>ყველა მიმწოდებლისგან შესყიდვების მიმოხილვა</CardDescription>
           </CardHeader>
           <CardContent>
             {supplierSummaries.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No completed orders yet
+                ჯერ არ არის დასრულებული შეკვეთები
               </div>
             ) : (
               <div className="space-y-4">
@@ -339,27 +339,27 @@ const Finance = () => {
                       <h3 className="font-semibold text-lg">{supplier.company_name}</h3>
                       {supplier.outstanding_debt > 0 && (
                         <span className="px-2 py-1 bg-destructive/10 text-destructive text-xs rounded-full">
-                          Outstanding Debt
+                          გადასახდელი ვალი
                         </span>
                       )}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
-                        <div className="text-xs text-muted-foreground mb-1">Total Items</div>
+                        <div className="text-xs text-muted-foreground mb-1">სულ ერთეული</div>
                         <div className="text-xl font-bold">{supplier.total_items}</div>
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground mb-1">Total Spent</div>
+                        <div className="text-xs text-muted-foreground mb-1">სულ დახარჯული</div>
                         <div className="text-xl font-bold">${supplier.total_amount.toFixed(2)}</div>
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground mb-1">Amount Paid</div>
+                        <div className="text-xs text-muted-foreground mb-1">გადახდილი თანხა</div>
                         <div className="text-xl font-bold text-success">
                           ${supplier.amount_paid.toFixed(2)}
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground mb-1">Outstanding Debt</div>
+                        <div className="text-xs text-muted-foreground mb-1">გადასახდელი ვალი</div>
                         <div className={`text-xl font-bold ${supplier.outstanding_debt > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
                           ${supplier.outstanding_debt.toFixed(2)}
                         </div>
@@ -379,9 +379,9 @@ const Finance = () => {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
-                  Monthly Summary
+                  თვიური შეჯამება
                 </CardTitle>
-                <CardDescription>View income and expenses by month</CardDescription>
+                <CardDescription>იხილეთ შემოსავალი და ხარჯები თვის მიხედვით</CardDescription>
               </div>
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger className="w-48">
@@ -408,7 +408,7 @@ const Finance = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <TrendingUp className="h-4 w-4 text-success" />
-                  Income
+                  შემოსავალი
                 </div>
                 <div className="text-2xl font-bold text-success">
                   ${monthlyIncome.toLocaleString()}
@@ -417,7 +417,7 @@ const Finance = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <TrendingDown className="h-4 w-4 text-destructive" />
-                  Expenses
+                  ხარჯები
                 </div>
                 <div className="text-2xl font-bold text-destructive">
                   ${monthlyExpense.toLocaleString()}
@@ -426,7 +426,7 @@ const Finance = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <DollarSign className="h-4 w-4" />
-                  Balance
+                  ბალანსი
                 </div>
                 <div className={`text-2xl font-bold ${monthlyBalance >= 0 ? "text-success" : "text-destructive"}`}>
                   ${monthlyBalance.toLocaleString()}
@@ -443,9 +443,9 @@ const Finance = () => {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
-                  Yearly Summary
+                  წლიური შეჯამება
                 </CardTitle>
-                <CardDescription>View annual income and expenses</CardDescription>
+                <CardDescription>იხილეთ წლიური შემოსავალი და ხარჯები</CardDescription>
               </div>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
                 <SelectTrigger className="w-32">
@@ -472,7 +472,7 @@ const Finance = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <TrendingUp className="h-4 w-4 text-success" />
-                  Income
+                  შემოსავალი
                 </div>
                 <div className="text-2xl font-bold text-success">
                   ${yearlyIncome.toLocaleString()}
@@ -481,7 +481,7 @@ const Finance = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <TrendingDown className="h-4 w-4 text-destructive" />
-                  Expenses
+                  ხარჯები
                 </div>
                 <div className="text-2xl font-bold text-destructive">
                   ${yearlyExpense.toLocaleString()}
@@ -490,7 +490,7 @@ const Finance = () => {
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <DollarSign className="h-4 w-4" />
-                  Balance
+                  ბალანსი
                 </div>
                 <div className={`text-2xl font-bold ${yearlyBalance >= 0 ? "text-success" : "text-destructive"}`}>
                   ${yearlyBalance.toLocaleString()}
@@ -503,12 +503,12 @@ const Finance = () => {
         {showForm && (
           <Card>
             <CardHeader>
-              <CardTitle>New Entry</CardTitle>
-              <CardDescription>Add a new income or expense record</CardDescription>
+              <CardTitle>ახალი ჩანაწერი</CardTitle>
+              <CardDescription>დაამატეთ ახალი შემოსავლის ან ხარჯის ჩანაწერი</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount</Label>
+                <Label htmlFor="amount">თანხა</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -519,7 +519,7 @@ const Finance = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="type">Type</Label>
+                <Label htmlFor="type">ტიპი</Label>
                 <div className="flex gap-4">
                   <Button
                     type="button"
@@ -528,7 +528,7 @@ const Finance = () => {
                     className="flex-1"
                   >
                     <TrendingUp className="h-4 w-4 mr-2" />
-                    Income
+                    შემოსავალი
                   </Button>
                   <Button
                     type="button"
@@ -537,22 +537,22 @@ const Finance = () => {
                     className="flex-1"
                   >
                     <TrendingDown className="h-4 w-4 mr-2" />
-                    Expense/Debt
+                    ხარჯი/ვალი
                   </Button>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="comment">Comment</Label>
+                <Label htmlFor="comment">კომენტარი</Label>
                 <Textarea
                   id="comment"
-                  placeholder="Add details about this transaction..."
+                  placeholder="დაამატეთ ინფორმაცია ტრანზაქციის შესახებ..."
                   value={newEntry.comment}
                   onChange={(e) => setNewEntry({ ...newEntry, comment: e.target.value })}
                 />
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleAddEntry} className="flex-1">Add Entry</Button>
-                <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+                <Button onClick={handleAddEntry} className="flex-1">ჩანაწერის დამატება</Button>
+                <Button variant="outline" onClick={() => setShowForm(false)}>გაუქმება</Button>
               </div>
             </CardContent>
           </Card>
@@ -560,12 +560,12 @@ const Finance = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Transaction History</CardTitle>
-            <CardDescription>All financial records for this company</CardDescription>
+            <CardTitle>ტრანზაქციების ისტორია</CardTitle>
+            <CardDescription>ყველა ფინანსური ჩანაწერი ამ კომპანიისთვის</CardDescription>
           </CardHeader>
           <CardContent>
             {entries.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No entries yet</p>
+              <p className="text-center text-muted-foreground py-8">ჯერ არ არის ჩანაწერები</p>
             ) : (
               <div className="space-y-4">
                 {entries.map((entry) => (
@@ -576,7 +576,7 @@ const Finance = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <DollarSign className={`h-4 w-4 ${entry.type === "income" ? "text-success" : "text-destructive"}`} />
-                        <span className="font-medium">{entry.type === "income" ? "Income" : "Expense/Debt"}</span>
+                        <span className="font-medium">{entry.type === "income" ? "შემოსავალი" : "ხარჯი/ვალი"}</span>
                       </div>
                       <div className="text-sm text-muted-foreground mt-1">
                         {new Date(entry.created_at).toLocaleDateString()}

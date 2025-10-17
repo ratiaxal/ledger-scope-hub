@@ -351,22 +351,22 @@ const Warehouse = () => {
         <div className="flex items-center justify-between">
           <div>
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground mb-2 inline-block">
-              ← Back to Dashboard
+              ← უკან მთავარზე
             </Link>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Package className="h-8 w-8 text-primary" />
-              Shared Warehouse & Inventory
+              საერთო საწყობი და ინვენტარი
             </h1>
-            <p className="text-muted-foreground">Manage products for all companies</p>
+            <p className="text-muted-foreground">მართეთ პროდუქტები ყველა კომპანიისთვის</p>
           </div>
           <div className="flex gap-2">
             <Button onClick={() => setShowOrderDialog(true)} variant="default" className="gap-2">
               <ShoppingCart className="h-4 w-4" />
-              Create Order
+              შეკვეთის შექმნა
             </Button>
             <Button onClick={() => setShowForm(!showForm)} variant="outline" className="gap-2">
               <Plus className="h-4 w-4" />
-              Add Item
+              ნივთის დამატება
             </Button>
           </div>
         </div>
@@ -374,7 +374,7 @@ const Warehouse = () => {
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Items</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">სულ ერთეული</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{totalItems}</div>
@@ -383,7 +383,7 @@ const Warehouse = () => {
           </Card>
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Products</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">სულ პროდუქტი</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{products.length}</div>
