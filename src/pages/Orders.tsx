@@ -1282,6 +1282,29 @@ const Orders = () => {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {selectedOrderForReturn && (
+              <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground">Items Sold</div>
+                  <div className="text-2xl font-bold text-primary">
+                    {Math.round(selectedOrderForReturn.totalAmount / (returnLines[0]?.unit_price || 1))}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground">Items Returned</div>
+                  <div className="text-2xl font-bold text-warning">
+                    {returnLines.reduce((sum, line) => sum + line.quantity, 0)}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground">Remaining Debt</div>
+                  <div className="text-2xl font-bold text-destructive">
+                    ${Math.max(0, selectedOrderForReturn.totalAmount - calculateReturnTotal() - selectedOrderForReturn.paymentReceived).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {returnLines.map((line) => (
               <div key={line.product_id} className="grid gap-3 p-3 border rounded-lg">
                 <div className="font-medium">{line.product_name}</div>
@@ -1319,12 +1342,9 @@ const Orders = () => {
                   <span className="text-2xl font-bold text-primary">${calculateReturnTotal().toFixed(2)}</span>
                 </div>
                 {selectedOrderForReturn && (
-                  <div className="mt-2 text-sm text-muted-foreground">
+                  <div className="mt-2 text-sm text-muted-foreground space-y-1">
                     <p>Original Order Total: ${selectedOrderForReturn.totalAmount.toFixed(2)}</p>
                     <p>Payment Received: ${selectedOrderForReturn.paymentReceived.toFixed(2)}</p>
-                    <p className="font-bold text-foreground mt-1">
-                      New Debt: ${Math.max(0, selectedOrderForReturn.totalAmount - calculateReturnTotal() - selectedOrderForReturn.paymentReceived).toFixed(2)}
-                    </p>
                   </div>
                 )}
               </div>
