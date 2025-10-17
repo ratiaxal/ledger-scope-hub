@@ -341,23 +341,71 @@ const Orders = () => {
   };
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: "open" | "completed" | "canceled") => {
-    const { error } = await supabase
-      .from("orders")
-      .update({ 
-        status: newStatus,
-        completed_at: newStatus === "completed" ? new Date().toISOString() : null
-      })
-      .eq("id", orderId);
+    try {
+      // If canceling a completed order, restore stock
+      if (newStatus === "canceled") {
+        const { data: orderData } = await supabase
+          .from("orders")
+          .select("status")
+          .eq("id", orderId)
+          .single();
 
-    if (error) {
-      toast({
-        title: "Error updating order",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
+        if (orderData?.status === "completed") {
+          // Fetch order lines to restore stock
+          const { data: orderLinesData, error: linesError } = await supabase
+            .from("order_lines")
+            .select("product_id, quantity")
+            .eq("order_id", orderId);
+
+          if (linesError) throw linesError;
+
+          // Restore stock for each product
+          for (const line of orderLinesData || []) {
+            const { data: productData } = await supabase
+              .from("products")
+              .select("current_stock")
+              .eq("id", line.product_id)
+              .single();
+
+            if (productData) {
+              await supabase
+                .from("products")
+                .update({ current_stock: productData.current_stock + line.quantity })
+                .eq("id", line.product_id);
+
+              // Create inventory transaction record
+              await supabase
+                .from("inventory_transactions")
+                .insert([{
+                  product_id: line.product_id,
+                  change_quantity: line.quantity,
+                  reason: "correction",
+                  related_order_id: orderId,
+                  comment: "Stock restored from canceled order",
+                }]);
+            }
+          }
+        }
+      }
+
+      const { error } = await supabase
+        .from("orders")
+        .update({ 
+          status: newStatus,
+          completed_at: newStatus === "completed" ? new Date().toISOString() : null
+        })
+        .eq("id", orderId);
+
+      if (error) throw error;
+
       toast({ title: "Order status updated successfully" });
       fetchOrders();
+    } catch (error) {
+      toast({
+        title: "Error updating order",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
     }
   };
 
