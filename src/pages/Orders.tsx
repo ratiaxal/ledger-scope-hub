@@ -35,6 +35,9 @@ interface Order {
   quantity: number;
   total: number;
   status: "open" | "completed" | "canceled";
+  paymentStatus?: string;
+  paymentReceived?: number;
+  debtFlag?: boolean;
 }
 
 const Orders = () => {
@@ -74,6 +77,15 @@ const Orders = () => {
     paymentReceived: number;
   } | null>(null);
   const [returnLines, setReturnLines] = useState<OrderLine[]>([]);
+  const [showLaterPaymentDialog, setShowLaterPaymentDialog] = useState(false);
+  const [selectedOrderForLaterPayment, setSelectedOrderForLaterPayment] = useState<{
+    id: string;
+    companyId: string | null;
+    totalAmount: number;
+    paymentReceived: number;
+  } | null>(null);
+  const [laterPaymentAmount, setLaterPaymentAmount] = useState("");
+  const [laterPaymentMethod, setLaterPaymentMethod] = useState("");
 
   useEffect(() => {
     fetchProducts();
@@ -121,7 +133,7 @@ const Orders = () => {
         variant: "destructive",
       });
     } else {
-      const formattedOrders: Order[] = (data || []).map((order: any) => ({
+      const formattedOrders: any[] = (data || []).map((order: any) => ({
         id: order.id,
         date: new Date(order.created_at).toISOString().split("T")[0],
         company: order.manual_company_name || order.companies?.name || "Unknown",
@@ -131,6 +143,9 @@ const Orders = () => {
         quantity: order.total_quantity,
         total: parseFloat(order.total_amount),
         status: order.status as "open" | "completed" | "canceled",
+        paymentStatus: order.payment_status,
+        paymentReceived: parseFloat(order.payment_received_amount || 0),
+        debtFlag: order.debt_flag,
       }));
       setOrders(formattedOrders);
     }
@@ -677,6 +692,106 @@ const Orders = () => {
       toast({
         title: "Error processing return",
         description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleInitiateLaterPayment = async (orderId: string) => {
+    const { data: orderData, error } = await supabase
+      .from("orders")
+      .select("id, company_id, total_amount, payment_received_amount")
+      .eq("id", orderId)
+      .single();
+
+    if (error || !orderData) {
+      toast({
+        title: "შეცდომა შეკვეთის ჩატვირთვისას",
+        description: error?.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedOrderForLaterPayment({
+      id: orderData.id,
+      companyId: orderData.company_id,
+      totalAmount: Number(orderData.total_amount),
+      paymentReceived: Number(orderData.payment_received_amount),
+    });
+    setLaterPaymentAmount("");
+    setLaterPaymentMethod("");
+    setShowLaterPaymentDialog(true);
+  };
+
+  const handleConfirmLaterPayment = async () => {
+    if (!selectedOrderForLaterPayment) return;
+
+    if (!laterPaymentAmount || !laterPaymentMethod) {
+      toast({
+        title: "არასრული ინფორმაცია",
+        description: "გთხოვთ შეიყვანოთ გადახდის თანხა და მეთოდი",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const paymentAmountValue = parseFloat(laterPaymentAmount);
+    if (paymentAmountValue <= 0) {
+      toast({
+        title: "არასწორი თანხა",
+        description: "გადახდის თანხა უნდა იყოს დადებითი",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const newTotalPayment = selectedOrderForLaterPayment.paymentReceived + paymentAmountValue;
+      const remainingDebt = Math.max(0, selectedOrderForLaterPayment.totalAmount - newTotalPayment);
+      const isFullyPaid = remainingDebt === 0;
+
+      // Update order payment information
+      const { error: orderError } = await supabase
+        .from("orders")
+        .update({
+          payment_received_amount: newTotalPayment,
+          payment_status: isFullyPaid ? "paid" : "unpaid",
+          debt_flag: !isFullyPaid,
+        })
+        .eq("id", selectedOrderForLaterPayment.id);
+
+      if (orderError) throw orderError;
+
+      // Create finance entry for the payment
+      const { error: financeError } = await supabase
+        .from("finance_entries")
+        .insert({
+          type: "income",
+          amount: paymentAmountValue,
+          company_id: selectedOrderForLaterPayment.companyId,
+          related_order_id: selectedOrderForLaterPayment.id,
+          comment: `გადახდა მიღებულია ${laterPaymentMethod}-ით დავალიანებული შეკვეთისთვის`,
+        });
+
+      if (financeError) throw financeError;
+
+      toast({
+        title: "გადახდა წარმატებით დარეგისტრირდა",
+        description: isFullyPaid 
+          ? `გადახდილია $${paymentAmountValue.toFixed(2)}. შეკვეთა სრულად დაფარულია.`
+          : `გადახდილია $${paymentAmountValue.toFixed(2)}. დარჩენილი ვალი: $${remainingDebt.toFixed(2)}`,
+      });
+
+      setShowLaterPaymentDialog(false);
+      setSelectedOrderForLaterPayment(null);
+      setLaterPaymentAmount("");
+      setLaterPaymentMethod("");
+      fetchOrders();
+    } catch (error) {
+      toast({
+        title: "შეცდომა გადახდის რეგისტრაციისას",
+        description: error instanceof Error ? error.message : "უცნობი შეცდომა",
         variant: "destructive",
       });
     }
@@ -1251,56 +1366,82 @@ const Orders = () => {
               {filteredOrders.filter(order => order.status === "completed").length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No completed orders</p>
               ) : (
-                filteredOrders.filter(order => order.status === "completed").map((order) => (
-                  <div
-                    key={order.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex-1 space-y-1">
+                filteredOrders.filter(order => order.status === "completed").map((order) => {
+                  const isUnpaid = order.paymentStatus === "unpaid" || order.debtFlag;
+                  const remainingDebt = order.total - (order.paymentReceived || 0);
+                  
+                  return (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono font-bold text-primary">{order.id}</span>
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
+                            დასრულებული
+                          </span>
+                          {isUnpaid && (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
+                              ვალი: ${remainingDebt.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm">
+                          <Building2 className="inline h-3 w-3 mr-1" />
+                          <span className="font-medium">{order.company}</span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {order.items}
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          {order.date}
+                        </div>
+                      </div>
                       <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-primary">{order.id}</span>
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
-                          Complete
-                        </span>
-                      </div>
-                      <div className="text-sm">
-                        <Building2 className="inline h-3 w-3 mr-1" />
-                        <span className="font-medium">{order.company}</span>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {order.items}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        {order.date}
+                        <div className="text-right">
+                          <div className="text-2xl font-bold">${order.total.toLocaleString()}</div>
+                          {isUnpaid && (
+                            <div className="text-sm text-muted-foreground">
+                              გადახდილი: ${(order.paymentReceived || 0).toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {isUnpaid && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleInitiateLaterPayment(order.id)}
+                              className="gap-2"
+                            >
+                              <DollarSign className="h-4 w-4" />
+                              გადახდის რეგისტრაცია
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleInitiateReturn(order.id)}
+                            className="gap-2"
+                          >
+                            პროდუქტის დაბრუნება
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteOrder(order.id)}
+                            className="gap-2"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            წაშლა
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <div className="text-2xl font-bold">${order.total.toLocaleString()}</div>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleInitiateReturn(order.id)}
-                          className="gap-2"
-                        >
-                          Return Items
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDeleteOrder(order.id)}
-                          className="gap-2"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </CardContent>
@@ -1390,6 +1531,78 @@ const Orders = () => {
             <Button onClick={handleConfirmOrderCompletion}>
               <DollarSign className="h-4 w-4 mr-2" />
               Complete Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showLaterPaymentDialog} onOpenChange={setShowLaterPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>გადახდის რეგისტრაცია</DialogTitle>
+            <DialogDescription>
+              დაარეგისტრირეთ გადახდა დავალიანებული შეკვეთისთვის
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {selectedOrderForLaterPayment && (
+              <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">შეკვეთის თანხა:</span>
+                  <span className="font-medium">${selectedOrderForLaterPayment.totalAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">უკვე გადახდილი:</span>
+                  <span className="font-medium">${selectedOrderForLaterPayment.paymentReceived.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm pt-2 border-t">
+                  <span className="text-muted-foreground font-bold">დარჩენილი ვალი:</span>
+                  <span className="font-bold text-warning">
+                    ${(selectedOrderForLaterPayment.totalAmount - selectedOrderForLaterPayment.paymentReceived).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="laterPaymentAmount">გადახდის თანხა ($)</Label>
+              <Input
+                id="laterPaymentAmount"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="შეიყვანეთ გადახდის თანხა"
+                value={laterPaymentAmount}
+                onChange={(e) => setLaterPaymentAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="laterPaymentMethod">გადახდის მეთოდი</Label>
+              <Select value={laterPaymentMethod} onValueChange={setLaterPaymentMethod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="აირჩიეთ გადახდის მეთოდი" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ნაღდი">ნაღდი</SelectItem>
+                  <SelectItem value="საკრედიტო ბარათი">საკრედიტო ბარათი</SelectItem>
+                  <SelectItem value="სადებეტო ბარათი">სადებეტო ბარათი</SelectItem>
+                  <SelectItem value="საბანკო გადარიცხვა">საბანკო გადარიცხვა</SelectItem>
+                  <SelectItem value="ჩეკი">ჩეკი</SelectItem>
+                  <SelectItem value="სხვა">სხვა</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLaterPaymentDialog(false)}>
+              გაუქმება
+            </Button>
+            <Button onClick={handleConfirmLaterPayment}>
+              <DollarSign className="h-4 w-4 mr-2" />
+              გადახდის დადასტურება
             </Button>
           </DialogFooter>
         </DialogContent>
