@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Plus, TrendingUp, TrendingDown, DollarSign, Calendar } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Building2, Plus, TrendingUp, TrendingDown, DollarSign, Calendar, Trash2 } from "lucide-react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -52,6 +54,9 @@ const Finance = () => {
     type: "income" as "income" | "expense",
     comment: "",
   });
+  const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteAction, setDeleteAction] = useState<"selected" | "all">("selected");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -241,6 +246,66 @@ const Finance = () => {
       setShowForm(false);
       fetchData();
     }
+  };
+
+  const toggleEntrySelection = (entryId: string) => {
+    const newSelection = new Set(selectedEntries);
+    if (newSelection.has(entryId)) {
+      newSelection.delete(entryId);
+    } else {
+      newSelection.add(entryId);
+    }
+    setSelectedEntries(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedEntries.size === entries.length) {
+      setSelectedEntries(new Set());
+    } else {
+      setSelectedEntries(new Set(entries.map(e => e.id)));
+    }
+  };
+
+  const handleDeleteEntries = async () => {
+    const idsToDelete = deleteAction === "all" 
+      ? entries.map(e => e.id)
+      : Array.from(selectedEntries);
+
+    if (idsToDelete.length === 0) return;
+
+    const { error } = await supabase
+      .from("finance_entries")
+      .delete()
+      .in("id", idsToDelete);
+
+    if (error) {
+      toast({
+        title: "წაშლის შეცდომა",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "წარმატებით წაიშალა",
+        description: `${idsToDelete.length} ჩანაწერი წაიშალა`,
+      });
+      setSelectedEntries(new Set());
+      setShowDeleteDialog(false);
+      fetchData();
+    }
+  };
+
+  const initiateDelete = (action: "selected" | "all") => {
+    if (action === "selected" && selectedEntries.size === 0) {
+      toast({
+        title: "ჩანაწერები არ არის არჩეული",
+        description: "გთხოვთ აირჩიოთ ჩანაწერები წასაშლელად",
+        variant: "destructive",
+      });
+      return;
+    }
+    setDeleteAction(action);
+    setShowDeleteDialog(true);
   };
 
   if (authLoading || loading) {
@@ -560,19 +625,58 @@ const Finance = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>ტრანზაქციების ისტორია</CardTitle>
-            <CardDescription>ყველა ფინანსური ჩანაწერი ამ კომპანიისთვის</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>ტრანზაქციების ისტორია</CardTitle>
+                <CardDescription>ყველა ფინანსური ჩანაწერი ამ კომპანიისთვის</CardDescription>
+              </div>
+              {entries.length > 0 && (
+                <div className="flex gap-2">
+                  {selectedEntries.size > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => initiateDelete("selected")}
+                      className="gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      არჩეულის წაშლა ({selectedEntries.size})
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => initiateDelete("all")}
+                    className="gap-2 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    ყველას წაშლა
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {entries.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">ჯერ არ არის ჩანაწერები</p>
             ) : (
               <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <Checkbox
+                    checked={selectedEntries.size === entries.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                  <span className="text-sm text-muted-foreground">ყველას არჩევა</span>
+                </div>
                 {entries.map((entry) => (
                   <div
                     key={entry.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
+                    <Checkbox
+                      checked={selectedEntries.has(entry.id)}
+                      onCheckedChange={() => toggleEntrySelection(entry.id)}
+                    />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <DollarSign className={`h-4 w-4 ${entry.type === "income" ? "text-success" : "text-destructive"}`} />
@@ -594,6 +698,26 @@ const Finance = () => {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>დარწმუნებული ხართ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteAction === "all" 
+                  ? `ეს წაშლის ყველა ${entries.length} ფინანსურ ჩანაწერს. ეს მოქმედება ვერ გაუქმდება.`
+                  : `ეს წაშლის ${selectedEntries.size} არჩეულ ჩანაწერს. ეს მოქმედება ვერ გაუქმდება.`
+                }
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>გაუქმება</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteEntries} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                წაშლა
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
