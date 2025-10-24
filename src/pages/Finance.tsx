@@ -168,6 +168,12 @@ const Finance = () => {
     return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
   }, 0);
 
+  // Calculate debt from order-related entries
+  const debtEntries = entries.filter(e => e.related_order_id);
+  const totalDebt = debtEntries.reduce((acc, entry) => {
+    return entry.type === "expense" ? acc + entry.amount : acc - entry.amount;
+  }, 0);
+
   // Get available months and years from entries
   const availableMonths = Array.from(new Set(
     entries.map(e => new Date(e.created_at).toISOString().slice(0, 7))
@@ -340,7 +346,7 @@ const Finance = () => {
           </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">მიმდინარე ბალანსი</CardTitle>
@@ -368,13 +374,29 @@ const Finance = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingDown className="h-4 w-4 text-destructive" />
-                სრული ხარჯები/ვალი
+                სრული ხარჯები
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-destructive">
                 ${entries.filter(e => e.type === "expense").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
               </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <TrendingDown className="h-4 w-4 text-warning" />
+                გადასახდელი ვალი
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-3xl font-bold ${totalDebt > 0 ? "text-warning" : "text-muted-foreground"}`}>
+                ${totalDebt.toLocaleString()}
+              </div>
+              {totalDebt > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">შეკვეთებიდან გადასახდელი</p>
+              )}
             </CardContent>
           </Card>
         </div>
