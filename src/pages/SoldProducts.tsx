@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Package, TrendingUp, TrendingDown, Calendar, DollarSign } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +42,8 @@ const SoldProducts = () => {
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7));
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [dateRangeFrom, setDateRangeFrom] = useState<string>("");
+  const [dateRangeTo, setDateRangeTo] = useState<string>("");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -207,6 +211,29 @@ const SoldProducts = () => {
 
   const yearlySold = yearlyTransactions.reduce((acc, t) => acc + t.quantity, 0);
   const yearlyRevenue = yearlyTransactions.reduce((acc, t) => acc + t.line_total, 0);
+
+  // Filter transactions by date range
+  const dateRangeTransactions = dateRangeFrom && dateRangeTo 
+    ? transactions.filter(t => {
+        const transactionDate = t.created_at.split('T')[0];
+        return transactionDate >= dateRangeFrom && transactionDate <= dateRangeTo;
+      })
+    : [];
+
+  const dateRangeSold = dateRangeTransactions.reduce((acc, t) => acc + t.quantity, 0);
+  const dateRangeRevenue = dateRangeTransactions.reduce((acc, t) => acc + t.line_total, 0);
+
+  // Get product breakdown for date range
+  const dateRangeProductMap = new Map<string, { name: string; quantity: number; revenue: number }>();
+  dateRangeTransactions.forEach(t => {
+    if (!dateRangeProductMap.has(t.product_name)) {
+      dateRangeProductMap.set(t.product_name, { name: t.product_name, quantity: 0, revenue: 0 });
+    }
+    const product = dateRangeProductMap.get(t.product_name)!;
+    product.quantity += t.quantity;
+    product.revenue += t.line_total;
+  });
+  const dateRangeProducts = Array.from(dateRangeProductMap.values()).sort((a, b) => b.quantity - a.quantity);
 
   // Get month name from date string
   const getMonthName = (dateString: string) => {
@@ -402,6 +429,92 @@ const SoldProducts = () => {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Date Range Summary */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  პერიოდის მიხედვით ფილტრი
+                </CardTitle>
+                <CardDescription>აირჩიეთ თარიღების დიაპაზონი გაყიდვებისა და პროდუქტების სანახავად</CardDescription>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dateFrom">დან</Label>
+                  <Input
+                    id="dateFrom"
+                    type="date"
+                    value={dateRangeFrom}
+                    onChange={(e) => setDateRangeFrom(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dateTo">მდე</Label>
+                  <Input
+                    id="dateTo"
+                    type="date"
+                    value={dateRangeTo}
+                    onChange={(e) => setDateRangeTo(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {dateRangeFrom && dateRangeTo ? (
+              <div className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                      <Package className="h-4 w-4 text-primary" />
+                      გაყიდული ერთეული (ლიტრი)
+                    </div>
+                    <div className="text-2xl font-bold text-primary">
+                      {dateRangeSold.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                      <DollarSign className="h-4 w-4 text-success" />
+                      შემოსავალი
+                    </div>
+                    <div className="text-2xl font-bold text-success">
+                      ${dateRangeRevenue.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+                
+                {dateRangeProducts.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-3">გაყიდული პროდუქტები:</h4>
+                    <div className="space-y-2">
+                      {dateRangeProducts.map((product, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                          <span className="font-medium">{product.name}</span>
+                          <div className="flex gap-6 text-sm">
+                            <span className="text-muted-foreground">
+                              რაოდენობა: <span className="font-bold text-foreground">{product.quantity.toLocaleString()} ლიტრი</span>
+                            </span>
+                            <span className="text-muted-foreground">
+                              შემოსავალი: <span className="font-bold text-success">${product.revenue.toFixed(2)}</span>
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                აირჩიეთ თარიღების დიაპაზონი შედეგების სანახავად
+              </div>
+            )}
           </CardContent>
         </Card>
 

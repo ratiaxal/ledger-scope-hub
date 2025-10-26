@@ -36,6 +36,8 @@ const OverallFinance = () => {
   const [clearing, setClearing] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7));
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [dateRangeFrom, setDateRangeFrom] = useState<string>("");
+  const [dateRangeTo, setDateRangeTo] = useState<string>("");
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteAction, setDeleteAction] = useState<"selected" | "all">("selected");
@@ -260,6 +262,24 @@ const OverallFinance = () => {
     .reduce((acc, e) => acc + e.amount, 0);
 
   const yearlyBalance = yearlyIncome - yearlyExpense;
+
+  // Filter entries by date range
+  const dateRangeEntries = dateRangeFrom && dateRangeTo 
+    ? entries.filter(e => {
+        const entryDate = e.created_at.split('T')[0];
+        return entryDate >= dateRangeFrom && entryDate <= dateRangeTo;
+      })
+    : [];
+
+  const dateRangeIncome = dateRangeEntries
+    .filter(e => e.type === "income")
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const dateRangeExpense = dateRangeEntries
+    .filter(e => e.type === "expense")
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const dateRangeBalance = dateRangeIncome - dateRangeExpense;
 
   // Get month name from date string
   const getMonthName = (dateString: string) => {
@@ -531,6 +551,78 @@ const OverallFinance = () => {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Date Range Summary */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  პერიოდის მიხედვით ფილტრი
+                </CardTitle>
+                <CardDescription>აირჩიეთ თარიღების დიაპაზონი შემოსავლის და ხარჯების სანახავად</CardDescription>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dateFrom">დან</Label>
+                  <Input
+                    id="dateFrom"
+                    type="date"
+                    value={dateRangeFrom}
+                    onChange={(e) => setDateRangeFrom(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dateTo">მდე</Label>
+                  <Input
+                    id="dateTo"
+                    type="date"
+                    value={dateRangeTo}
+                    onChange={(e) => setDateRangeTo(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {dateRangeFrom && dateRangeTo ? (
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="p-4 border rounded-lg">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                    <TrendingUp className="h-4 w-4 text-success" />
+                    შემოსავალი
+                  </div>
+                  <div className="text-2xl font-bold text-success">
+                    ${dateRangeIncome.toLocaleString()}
+                  </div>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                    <TrendingDown className="h-4 w-4 text-destructive" />
+                    ხარჯები
+                  </div>
+                  <div className="text-2xl font-bold text-destructive">
+                    ${dateRangeExpense.toLocaleString()}
+                  </div>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                    <DollarSign className="h-4 w-4" />
+                    ბალანსი
+                  </div>
+                  <div className={`text-2xl font-bold ${dateRangeBalance >= 0 ? "text-success" : "text-destructive"}`}>
+                    ${dateRangeBalance.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                აირჩიეთ თარიღების დიაპაზონი შედეგების სანახავად
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -56,6 +56,7 @@ const Orders = () => {
     items: "",
     quantity: "",
     total: "",
+    paymentAmount: "",
   });
 
   const [useCustomCompany, setUseCustomCompany] = useState(false);
@@ -303,6 +304,8 @@ const Orders = () => {
 
     const companyName = useCustomCompany ? newOrder.customCompany : newOrder.company;
     const selectedCompany = companies.find(c => c.name === newOrder.company);
+    const paymentAmountValue = parseFloat(newOrder.paymentAmount) || 0;
+    const orderTotal = calculateOrderTotal();
 
     // Insert order
     const { data: orderData, error: orderError } = await supabase
@@ -311,8 +314,11 @@ const Orders = () => {
         company_id: useCustomCompany ? null : selectedCompany?.id,
         manual_company_name: useCustomCompany ? newOrder.customCompany : null,
         total_quantity: orderLines.reduce((sum, line) => sum + line.quantity, 0),
-        total_amount: calculateOrderTotal(),
+        total_amount: orderTotal,
         status: "open",
+        payment_received_amount: paymentAmountValue,
+        payment_status: paymentAmountValue >= orderTotal ? "paid" : (paymentAmountValue > 0 ? "partially_paid" : "unpaid"),
+        debt_flag: paymentAmountValue < orderTotal,
       }])
       .select()
       .single();
@@ -347,7 +353,7 @@ const Orders = () => {
     }
 
     toast({ title: "Order created successfully" });
-    setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "" });
+    setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "", paymentAmount: "" });
     setOrderLines([]);
     setSelectedProducts(new Set());
     setShowForm(false);
@@ -1192,6 +1198,22 @@ const Orders = () => {
                   </div>
                 </div>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="paymentAmount">Payment Amount (Optional)</Label>
+                <Input
+                  id="paymentAmount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={newOrder.paymentAmount}
+                  onChange={(e) => setNewOrder({ ...newOrder, paymentAmount: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Enter payment amount received at order creation. Leave empty if no payment received yet.
+                </p>
+              </div>
 
               <div className="flex gap-2">
                 <Button onClick={handleAddOrder} className="flex-1">Create Order</Button>
