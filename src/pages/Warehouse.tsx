@@ -174,19 +174,17 @@ const Warehouse = () => {
       return;
     }
 
-    // Record finance entry for stock changes
-    if (actualChange !== 0) {
-      const amount = Math.abs(actualChange * product.unit_price);
-      const isIncrease = actualChange > 0;
+    // Record finance entry only for stock increases (purchases)
+    // Stock decreases (write-offs) only affect warehouse balance, not finances
+    if (actualChange > 0) {
+      const amount = actualChange * product.unit_price;
 
       const { error: financeError } = await supabase
         .from("finance_entries")
         .insert([{
-          type: isIncrease ? "expense" : "income",
+          type: "expense",
           amount: amount,
-          comment: isIncrease 
-            ? `საწყობის მარაგის დამატება - ${product.name} (+${actualChange} ცალი × $${product.unit_price})`
-            : `საწყობის მარაგის შემცირება - ${product.name} (-${Math.abs(actualChange)} ცალი × $${product.unit_price})`,
+          comment: `საწყობის მარაგის დამატება - ${product.name} (+${actualChange} ცალი × $${product.unit_price})`,
           company_id: null,
           related_order_id: null,
         }]);
