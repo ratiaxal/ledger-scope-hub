@@ -38,6 +38,14 @@ interface SupplierSummary {
   outstanding_debt: number;
 }
 
+interface ProductPurchase {
+  product_id: string;
+  product_name: string;
+  total_quantity: number;
+  unit_price: number;
+  total_amount: number;
+}
+
 const Finance = () => {
   const { companyId } = useParams();
   const navigate = useNavigate();
@@ -46,10 +54,9 @@ const Finance = () => {
   const [company, setCompany] = useState<Company | null>(null);
   const [entries, setEntries] = useState<FinanceEntry[]>([]);
   const [supplierSummaries, setSupplierSummaries] = useState<SupplierSummary[]>([]);
+  const [productPurchases, setProductPurchases] = useState<ProductPurchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7));
-  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [newEntry, setNewEntry] = useState({
     amount: "",
     type: "income" as "income" | "expense",
@@ -115,6 +122,9 @@ const Finance = () => {
 
     // Fetch supplier summaries from orders
     await fetchSupplierSummaries();
+    
+    // Fetch product purchases for this company
+    await fetchProductPurchases();
 
     setLoading(false);
   };
@@ -170,6 +180,62 @@ const Finance = () => {
     setSupplierSummaries(Array.from(summaryMap.values()));
   };
 
+  const fetchProductPurchases = async () => {
+    // First get all orders for this company
+    const { data: ordersData, error: ordersError } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('status', 'completed');
+
+    if (ordersError || !ordersData || ordersData.length === 0) {
+      setProductPurchases([]);
+      return;
+    }
+
+    const orderIds = ordersData.map(order => order.id);
+
+    // Then get order lines for these orders
+    const { data: orderLinesData, error: orderLinesError } = await supabase
+      .from("order_lines")
+      .select(`
+        product_id,
+        quantity,
+        unit_price,
+        products (name)
+      `)
+      .in('order_id', orderIds);
+
+    if (orderLinesError) {
+      console.error("Error loading product purchases:", orderLinesError);
+      return;
+    }
+
+    // Group by product and calculate totals
+    const productMap = new Map<string, ProductPurchase>();
+
+    orderLinesData?.forEach((line: any) => {
+      const productId = line.product_id;
+      const productName = line.products?.name || "Unknown Product";
+
+      if (!productMap.has(productId)) {
+        productMap.set(productId, {
+          product_id: productId,
+          product_name: productName,
+          total_quantity: 0,
+          unit_price: line.unit_price,
+          total_amount: 0,
+        });
+      }
+
+      const product = productMap.get(productId)!;
+      product.total_quantity += line.quantity;
+      product.total_amount += line.quantity * line.unit_price;
+    });
+
+    setProductPurchases(Array.from(productMap.values()).sort((a, b) => b.total_quantity - a.total_quantity));
+  };
+
   const balance = entries.reduce((acc, entry) => {
     return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
   }, 0);
@@ -179,51 +245,6 @@ const Finance = () => {
   const totalDebt = debtEntries.reduce((acc, entry) => {
     return entry.type === "expense" ? acc + entry.amount : acc - entry.amount;
   }, 0);
-
-  // Get available months and years from entries
-  const availableMonths = Array.from(new Set(
-    entries.map(e => new Date(e.created_at).toISOString().slice(0, 7))
-  )).sort().reverse();
-
-  const availableYears = Array.from(new Set(
-    entries.map(e => new Date(e.created_at).getFullYear().toString())
-  )).sort().reverse();
-
-  // Filter entries by selected month
-  const monthlyEntries = entries.filter(e => 
-    e.created_at.startsWith(selectedMonth)
-  );
-
-  const monthlyIncome = monthlyEntries
-    .filter(e => e.type === "income")
-    .reduce((acc, e) => acc + e.amount, 0);
-
-  const monthlyExpense = monthlyEntries
-    .filter(e => e.type === "expense")
-    .reduce((acc, e) => acc + e.amount, 0);
-
-  const monthlyBalance = monthlyIncome - monthlyExpense;
-
-  // Filter entries by selected year
-  const yearlyEntries = entries.filter(e => 
-    new Date(e.created_at).getFullYear().toString() === selectedYear
-  );
-
-  const yearlyIncome = yearlyEntries
-    .filter(e => e.type === "income")
-    .reduce((acc, e) => acc + e.amount, 0);
-
-  const yearlyExpense = yearlyEntries
-    .filter(e => e.type === "expense")
-    .reduce((acc, e) => acc + e.amount, 0);
-
-  const yearlyBalance = yearlyIncome - yearlyExpense;
-
-  // Get month name from date string
-  const getMonthName = (dateString: string) => {
-    const date = new Date(dateString + "-01");
-    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  };
 
   const handleAddEntry = async () => {
     if (!newEntry.amount || !user) return;
@@ -448,17 +469,7 @@ const Finance = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">მიმდინარე ბალანსი</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-3xl font-bold ${balance >= 0 ? "text-success" : "text-destructive"}`}>
-                ${balance.toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -469,19 +480,6 @@ const Finance = () => {
             <CardContent>
               <div className="text-3xl font-bold text-success">
                 ${entries.filter(e => e.type === "income").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-destructive" />
-                სრული ხარჯები
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-destructive">
-                ${entries.filter(e => e.type === "expense").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -503,54 +501,39 @@ const Finance = () => {
           </Card>
         </div>
 
-        {/* Supplier Summary */}
+        {/* Product Purchases */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
-              მიმწოდებლებისგან შესყიდვების შეჯამება
+              პროდუქტების შესყიდვები
             </CardTitle>
-            <CardDescription>ყველა მიმწოდებლისგან შესყიდვების მიმოხილვა</CardDescription>
+            <CardDescription>რა პროდუქტებს ყიდულობს ეს კომპანია და რა რაოდენობით</CardDescription>
           </CardHeader>
           <CardContent>
-            {supplierSummaries.length === 0 ? (
+            {productPurchases.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                ჯერ არ არის დასრულებული შეკვეთები
+                ჯერ არ არის შესყიდული პროდუქტები
               </div>
             ) : (
-              <div className="space-y-4">
-                {supplierSummaries.map((supplier, index) => (
+              <div className="space-y-3">
+                {productPurchases.map((product) => (
                   <div
-                    key={index}
+                    key={product.product_id}
                     className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-lg">{supplier.company_name}</h3>
-                      {supplier.outstanding_debt > 0 && (
-                        <span className="px-2 py-1 bg-destructive/10 text-destructive text-xs rounded-full">
-                          გადასახდელი ვალი
-                        </span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-xs text-muted-foreground mb-1">სულ ერთეული</div>
-                        <div className="text-xl font-bold">{supplier.total_items}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">სულ დახარჯული</div>
-                        <div className="text-xl font-bold">${supplier.total_amount.toFixed(2)}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">გადახდილი თანხა</div>
-                        <div className="text-xl font-bold text-success">
-                          ${supplier.amount_paid.toFixed(2)}
+                        <h3 className="font-semibold text-lg">{product.product_name}</h3>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                          <span>რაოდენობა: <span className="font-bold text-foreground">{product.total_quantity.toLocaleString()} ლიტრი</span></span>
+                          <span>ფასი: <span className="font-bold text-foreground">${product.unit_price.toFixed(2)}</span></span>
                         </div>
                       </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">გადასახდელი ვალი</div>
-                        <div className={`text-xl font-bold ${supplier.outstanding_debt > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                          ${supplier.outstanding_debt.toFixed(2)}
+                      <div className="text-right">
+                        <div className="text-xs text-muted-foreground mb-1">სულ ღირებულება</div>
+                        <div className="text-2xl font-bold text-primary">
+                          ${product.total_amount.toFixed(2)}
                         </div>
                       </div>
                     </div>
@@ -558,134 +541,6 @@ const Finance = () => {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Monthly Summary */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  თვიური შეჯამება
-                </CardTitle>
-                <CardDescription>იხილეთ შემოსავალი და ხარჯები თვის მიხედვით</CardDescription>
-              </div>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMonths.length > 0 ? (
-                    availableMonths.map(month => (
-                      <SelectItem key={month} value={month}>
-                        {getMonthName(month)}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value={selectedMonth}>
-                      {getMonthName(selectedMonth)}
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
-                  <TrendingUp className="h-4 w-4 text-success" />
-                  შემოსავალი
-                </div>
-                <div className="text-2xl font-bold text-success">
-                  ${monthlyIncome.toLocaleString()}
-                </div>
-              </div>
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
-                  <TrendingDown className="h-4 w-4 text-destructive" />
-                  ხარჯები
-                </div>
-                <div className="text-2xl font-bold text-destructive">
-                  ${monthlyExpense.toLocaleString()}
-                </div>
-              </div>
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4" />
-                  ბალანსი
-                </div>
-                <div className={`text-2xl font-bold ${monthlyBalance >= 0 ? "text-success" : "text-destructive"}`}>
-                  ${monthlyBalance.toLocaleString()}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Yearly Summary */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  წლიური შეჯამება
-                </CardTitle>
-                <CardDescription>იხილეთ წლიური შემოსავალი და ხარჯები</CardDescription>
-              </div>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableYears.length > 0 ? (
-                    availableYears.map(year => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value={selectedYear}>
-                      {selectedYear}
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
-                  <TrendingUp className="h-4 w-4 text-success" />
-                  შემოსავალი
-                </div>
-                <div className="text-2xl font-bold text-success">
-                  ${yearlyIncome.toLocaleString()}
-                </div>
-              </div>
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
-                  <TrendingDown className="h-4 w-4 text-destructive" />
-                  ხარჯები
-                </div>
-                <div className="text-2xl font-bold text-destructive">
-                  ${yearlyExpense.toLocaleString()}
-                </div>
-              </div>
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4" />
-                  ბალანსი
-                </div>
-                <div className={`text-2xl font-bold ${yearlyBalance >= 0 ? "text-success" : "text-destructive"}`}>
-                  ${yearlyBalance.toLocaleString()}
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
