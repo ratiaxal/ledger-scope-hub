@@ -101,25 +101,55 @@ const Warehouse = () => {
       return;
     }
 
-    const { error } = await supabase.from("products").insert([{
-      name: newItem.name,
-      sku: newItem.sku || null,
-      unit_price: parseFloat(newItem.price),
-      current_stock: parseInt(newItem.stock),
-    }]);
+    const quantity = parseInt(newItem.stock);
+    const unitPrice = parseFloat(newItem.price);
+    const totalCost = quantity * unitPrice;
 
-    if (error) {
+    // Insert product
+    const { data: productData, error: productError } = await supabase
+      .from("products")
+      .insert([{
+        name: newItem.name,
+        sku: newItem.sku || null,
+        unit_price: unitPrice,
+        current_stock: quantity,
+      }])
+      .select()
+      .single();
+
+    if (productError) {
       toast({
         title: "Error adding product",
-        description: error.message,
+        description: productError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Record initial stock purchase as expense
+    const { error: financeError } = await supabase
+      .from("finance_entries")
+      .insert([{
+        type: "expense",
+        amount: totalCost,
+        comment: `საწყობის საწყისი მარაგი - ${newItem.name} (${quantity} ცალი × $${unitPrice})`,
+        company_id: null,
+        related_order_id: null,
+      }]);
+
+    if (financeError) {
+      toast({
+        title: "Warning",
+        description: "Product added but finance entry failed: " + financeError.message,
         variant: "destructive",
       });
     } else {
-      toast({ title: "Product added successfully" });
-      setNewItem({ name: "", sku: "", stock: "", price: "" });
-      setShowForm(false);
-      fetchProducts();
+      toast({ title: "Product added and expense recorded" });
     }
+
+    setNewItem({ name: "", sku: "", stock: "", price: "" });
+    setShowForm(false);
+    fetchProducts();
   };
 
   const handleUpdateStock = async (id: string, change: number) => {
@@ -127,21 +157,50 @@ const Warehouse = () => {
     if (!product) return;
 
     const newStock = Math.max(0, product.current_stock + change);
+    const actualChange = newStock - product.current_stock;
 
-    const { error } = await supabase
+    // Update product stock
+    const { error: stockError } = await supabase
       .from("products")
       .update({ current_stock: newStock })
       .eq("id", id);
 
-    if (error) {
+    if (stockError) {
       toast({
         title: "Error updating stock",
-        description: error.message,
+        description: stockError.message,
         variant: "destructive",
       });
-    } else {
-      fetchProducts();
+      return;
     }
+
+    // Record finance entry for stock changes
+    if (actualChange !== 0) {
+      const amount = Math.abs(actualChange * product.unit_price);
+      const isIncrease = actualChange > 0;
+
+      const { error: financeError } = await supabase
+        .from("finance_entries")
+        .insert([{
+          type: isIncrease ? "expense" : "income",
+          amount: amount,
+          comment: isIncrease 
+            ? `საწყობის მარაგის დამატება - ${product.name} (+${actualChange} ცალი × $${product.unit_price})`
+            : `საწყობის მარაგის შემცირება - ${product.name} (-${Math.abs(actualChange)} ცალი × $${product.unit_price})`,
+          company_id: null,
+          related_order_id: null,
+        }]);
+
+      if (financeError) {
+        toast({
+          title: "Warning",
+          description: "Stock updated but finance entry failed: " + financeError.message,
+          variant: "destructive",
+        });
+      }
+    }
+
+    fetchProducts();
   };
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
