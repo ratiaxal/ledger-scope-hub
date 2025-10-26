@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Package, Plus, TrendingDown, ShoppingCart, Trash2 } from "lucide-react";
+import { Package, Plus, TrendingDown, ShoppingCart, Trash2, DollarSign } from "lucide-react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -425,6 +425,7 @@ const Warehouse = () => {
   };
 
   const totalItems = products.reduce((acc, item) => acc + item.current_stock, 0);
+  const totalWarehouseValue = products.reduce((acc, item) => acc + (item.current_stock * item.unit_price), 0);
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -452,7 +453,7 @@ const Warehouse = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-3">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">სულ ერთეული</CardTitle>
@@ -469,6 +470,18 @@ const Warehouse = () => {
             <CardContent>
               <div className="text-3xl font-bold">{products.length}</div>
               <p className="text-xs text-muted-foreground mt-1">Unique products</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" />
+                საწყობის სრული ღირებულება
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-primary">${totalWarehouseValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <p className="text-xs text-muted-foreground mt-1">მიმდინარე მარაგის ხარჯი</p>
             </CardContent>
           </Card>
         </div>
