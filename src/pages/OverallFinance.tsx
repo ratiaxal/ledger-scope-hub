@@ -2,9 +2,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { TrendingUp, TrendingDown, DollarSign, Calendar, Building2, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { TrendingUp, TrendingDown, DollarSign, Calendar, Building2, Trash2, ArrowDownToLine } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,6 +39,11 @@ const OverallFinance = () => {
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteAction, setDeleteAction] = useState<"selected" | "all">("selected");
+  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
+  const [withdrawal, setWithdrawal] = useState({
+    amount: "",
+    note: "",
+  });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -150,6 +159,53 @@ const OverallFinance = () => {
     setShowDeleteDialog(true);
   };
 
+  const handleWithdraw = async () => {
+    if (!withdrawal.amount || !user) return;
+
+    const amount = parseFloat(withdrawal.amount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "არასწორი თანხა",
+        description: "გთხოვთ შეიყვანოთ სწორი დადებითი თანხა",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (amount > balance) {
+      toast({
+        title: "არასაკმარისი ბალანსი",
+        description: "თქვენ არ გაქვთ საკმარისი ბალანსი ამ თანხის გასატანად",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase.from("finance_entries").insert([{
+      company_id: null,
+      type: "expense",
+      amount,
+      comment: `გატანა: ${withdrawal.note || "კომენტარის გარეშე"}`,
+      created_by: user.id,
+    }]);
+
+    if (error) {
+      toast({
+        title: "გატანის შეცდომა",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ 
+        title: "წარმატებული გატანა",
+        description: `$${amount.toLocaleString()} წარმატებით გატანილია`
+      });
+      setWithdrawal({ amount: "", note: "" });
+      setShowWithdrawDialog(false);
+      fetchData();
+    }
+  };
+
   const balance = entries.reduce((acc, entry) => {
     return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
   }, 0);
@@ -237,15 +293,64 @@ const OverallFinance = () => {
             </h1>
             <p className="text-muted-foreground">სრული ფინანსური მიმოხილვა ყველა კომპანიაში</p>
           </div>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleClearAutomatedEntries}
-            disabled={clearing}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            {clearing ? "იშლება..." : "ავტომატური ჩანაწერების გასუფთავება"}
-          </Button>
+          <div className="flex gap-2">
+            <Dialog open={showWithdrawDialog} onOpenChange={setShowWithdrawDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <ArrowDownToLine className="h-4 w-4" />
+                  თანხის გატანა
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>თანხის გატანა</DialogTitle>
+                  <DialogDescription>
+                    ხელმისაწვდომი ბალანსი: <span className="font-bold text-lg">${balance.toLocaleString()}</span>
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="withdraw-amount">თანხა *</Label>
+                    <Input
+                      id="withdraw-amount"
+                      type="number"
+                      step="0.01"
+                      value={withdrawal.amount}
+                      onChange={(e) => setWithdrawal({ ...withdrawal, amount: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="withdraw-note">კომენტარი *</Label>
+                    <Textarea
+                      id="withdraw-note"
+                      value={withdrawal.note}
+                      onChange={(e) => setWithdrawal({ ...withdrawal, note: e.target.value })}
+                      placeholder="რისთვის იხდით ამ თანხას?"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleWithdraw} className="flex-1">
+                      თანხის გატანა
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowWithdrawDialog(false)}>
+                      გაუქმება
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleClearAutomatedEntries}
+              disabled={clearing}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {clearing ? "იშლება..." : "ავტომატური ჩანაწერების გასუფთავება"}
+            </Button>
+          </div>
         </div>
 
         {/* Overall Summary Cards */}
