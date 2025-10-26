@@ -112,7 +112,7 @@ const Orders = () => {
   };
 
   const fetchOrders = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("orders")
       .select(`
         *,
@@ -124,8 +124,14 @@ const Orders = () => {
           line_total,
           products (name)
         )
-      `)
-      .order("created_at", { ascending: false });
+      `);
+    
+    // Filter by company if companyId is present
+    if (companyId) {
+      query = query.eq("company_id", companyId);
+    }
+    
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
       toast({
