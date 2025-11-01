@@ -59,6 +59,9 @@ const Warehouse = () => {
     price: "",
     quantity: "1",
   });
+  const [showReduceDialog, setShowReduceDialog] = useState(false);
+  const [reduceProduct, setReduceProduct] = useState<Product | null>(null);
+  const [reduceQuantity, setReduceQuantity] = useState("");
 
   useEffect(() => {
     fetchWarehouses();
@@ -143,48 +146,173 @@ const Warehouse = () => {
     const unitPrice = parseFloat(newItem.price);
     const totalCost = quantity * unitPrice;
 
-    // Insert product
-    const { data: productData, error: productError } = await supabase
-      .from("products")
-      .insert([{
-        name: newItem.name,
-        sku: newItem.sku || null,
-        unit_price: unitPrice,
-        current_stock: quantity,
-        warehouse_id: selectedWarehouse,
-      }])
-      .select()
-      .single();
+    // Check if we're adding to Main Warehouse (Tbilisi)
+    const currentWarehouse = warehouses.find(w => w.id === selectedWarehouse);
+    const isMainWarehouse = currentWarehouse?.name === "Main Warehouse";
 
-    if (productError) {
+    if (isMainWarehouse) {
+      // Find Village Warehouse
+      const villageWarehouse = warehouses.find(w => w.name === "Village Warehouse");
+      
+      if (villageWarehouse) {
+        // Check if product exists in Village Warehouse
+        const { data: villageProducts, error: villageCheckError } = await supabase
+          .from("products")
+          .select("*")
+          .eq("warehouse_id", villageWarehouse.id)
+          .eq("name", newItem.name);
+
+        if (villageCheckError) {
+          toast({
+            title: "Error checking Village Warehouse",
+            description: villageCheckError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (villageProducts && villageProducts.length > 0) {
+          const villageProduct = villageProducts[0];
+          
+          if (villageProduct.current_stock < quantity) {
+            toast({
+              title: "არასაკმარისი მარაგი სოფლის საწყობში",
+              description: `Village Warehouse-ში მხოლოდ ${villageProduct.current_stock} ერთეულია. თქვენ ცდილობთ ${quantity} ერთეულის გადატანას.`,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          // Deduct from Village Warehouse
+          const newVillageStock = villageProduct.current_stock - quantity;
+          const { error: villageUpdateError } = await supabase
+            .from("products")
+            .update({ current_stock: newVillageStock })
+            .eq("id", villageProduct.id);
+
+          if (villageUpdateError) {
+            toast({
+              title: "Error updating Village Warehouse",
+              description: villageUpdateError.message,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          // Record inventory transaction for Village Warehouse
+          await supabase
+            .from("inventory_transactions")
+            .insert([{
+              product_id: villageProduct.id,
+              change_quantity: -quantity,
+              reason: "correction",
+              comment: `გადატანილია Main Warehouse-ში`,
+              warehouse_id: villageWarehouse.id,
+            }]);
+        }
+      }
+    }
+
+    // Insert or update product in current warehouse
+    const { data: existingProducts, error: checkError } = await supabase
+      .from("products")
+      .select("*")
+      .eq("warehouse_id", selectedWarehouse)
+      .eq("name", newItem.name);
+
+    if (checkError) {
       toast({
-        title: "Error adding product",
-        description: productError.message,
+        title: "Error checking existing products",
+        description: checkError.message,
         variant: "destructive",
       });
       return;
     }
 
-    // Record initial stock purchase as expense
-    const { error: financeError } = await supabase
-      .from("finance_entries")
-      .insert([{
-        type: "expense",
-        amount: totalCost,
-        comment: `საწყობის საწყისი მარაგი - ${newItem.name} (${quantity} ცალი × $${unitPrice})`,
-        company_id: null,
-        related_order_id: null,
-        warehouse_id: selectedWarehouse,
-      }]);
+    if (existingProducts && existingProducts.length > 0) {
+      // Product exists, update stock
+      const existingProduct = existingProducts[0];
+      const newStock = existingProduct.current_stock + quantity;
+      
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({ current_stock: newStock })
+        .eq("id", existingProduct.id);
 
-    if (financeError) {
-      toast({
-        title: "Warning",
-        description: "Product added but finance entry failed: " + financeError.message,
-        variant: "destructive",
+      if (updateError) {
+        toast({
+          title: "Error updating product",
+          description: updateError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Record inventory transaction
+      await supabase
+        .from("inventory_transactions")
+        .insert([{
+          product_id: existingProduct.id,
+          change_quantity: quantity,
+          reason: isMainWarehouse ? "correction" : "restock",
+          comment: isMainWarehouse ? `გადმოტანილია Village Warehouse-დან` : `საწყობის მარაგის დამატება`,
+          warehouse_id: selectedWarehouse,
+        }]);
+
+      toast({ 
+        title: "პროდუქტი განახლდა",
+        description: isMainWarehouse 
+          ? `${quantity} ერთეული გადმოტანილია Village Warehouse-დან`
+          : `${quantity} ერთეული დაემატა მარაგს`
       });
     } else {
-      toast({ title: "Product added and expense recorded" });
+      // Insert new product
+      const { data: productData, error: productError } = await supabase
+        .from("products")
+        .insert([{
+          name: newItem.name,
+          sku: newItem.sku || null,
+          unit_price: unitPrice,
+          current_stock: quantity,
+          warehouse_id: selectedWarehouse,
+        }])
+        .select()
+        .single();
+
+      if (productError) {
+        toast({
+          title: "Error adding product",
+          description: productError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Record initial stock purchase as expense only if not from Village Warehouse transfer
+      if (!isMainWarehouse) {
+        const { error: financeError } = await supabase
+          .from("finance_entries")
+          .insert([{
+            type: "expense",
+            amount: totalCost,
+            comment: `საწყობის საწყისი მარაგი - ${newItem.name} (${quantity} ცალი × $${unitPrice})`,
+            company_id: null,
+            related_order_id: null,
+            warehouse_id: selectedWarehouse,
+          }]);
+
+        if (financeError) {
+          toast({
+            title: "Warning",
+            description: "Product added but finance entry failed: " + financeError.message,
+            variant: "destructive",
+          });
+        } else {
+          toast({ title: "Product added and expense recorded" });
+        }
+      } else {
+        toast({ title: "პროდუქტი დაემატა და გადმოტანა განხორციელდა" });
+      }
     }
 
     setNewItem({ name: "", sku: "", stock: "", price: "" });
@@ -214,11 +342,10 @@ const Warehouse = () => {
       return;
     }
 
-    // Record finance entry only for stock increases (purchases)
-    // Stock decreases (write-offs) only affect warehouse balance, not finances
-    if (actualChange > 0) {
-      const amount = actualChange * product.unit_price;
+    const amount = Math.abs(actualChange) * product.unit_price;
 
+    if (actualChange > 0) {
+      // Stock increase - record as expense
       const { error: financeError } = await supabase
         .from("finance_entries")
         .insert([{
@@ -237,8 +364,117 @@ const Warehouse = () => {
           variant: "destructive",
         });
       }
+    } else if (actualChange < 0) {
+      // Stock decrease - deduct from finances (income to offset previous expense)
+      const { error: financeError } = await supabase
+        .from("finance_entries")
+        .insert([{
+          type: "income",
+          amount: amount,
+          comment: `საწყობის მარაგის შემცირება - ${product.name} (${actualChange} ცალი × $${product.unit_price})`,
+          company_id: null,
+          related_order_id: null,
+          warehouse_id: selectedWarehouse,
+        }]);
+
+      if (financeError) {
+        toast({
+          title: "Warning",
+          description: "Stock updated but finance entry failed: " + financeError.message,
+          variant: "destructive",
+        });
+      }
     }
 
+    fetchProducts();
+  };
+
+  const handleManualReduce = async () => {
+    if (!reduceProduct || !reduceQuantity) {
+      toast({
+        title: "არასრული ინფორმაცია",
+        description: "გთხოვთ შეიყვანოთ რაოდენობა",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const quantity = parseInt(reduceQuantity);
+    if (isNaN(quantity) || quantity <= 0) {
+      toast({
+        title: "არასწორი რაოდენობა",
+        description: "გთხოვთ შეიყვანოთ დადებითი რიცხვი",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (quantity > reduceProduct.current_stock) {
+      toast({
+        title: "არასაკმარისი მარაგი",
+        description: `მარაგში მხოლოდ ${reduceProduct.current_stock} ერთეულია`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newStock = reduceProduct.current_stock - quantity;
+    const deductedValue = quantity * reduceProduct.unit_price;
+
+    // Update product stock
+    const { error: stockError } = await supabase
+      .from("products")
+      .update({ current_stock: newStock })
+      .eq("id", reduceProduct.id);
+
+    if (stockError) {
+      toast({
+        title: "შეცდომა",
+        description: stockError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Record inventory transaction
+    await supabase
+      .from("inventory_transactions")
+      .insert([{
+        product_id: reduceProduct.id,
+        change_quantity: -quantity,
+        reason: "correction",
+        comment: `ხელით შემცირება - დაბრუნება/გაფუჭება`,
+        warehouse_id: selectedWarehouse,
+      }]);
+
+    // Deduct value from finances (record as income to offset the original expense)
+    const { error: financeError } = await supabase
+      .from("finance_entries")
+      .insert([{
+        type: "income",
+        amount: deductedValue,
+        comment: `პროდუქტის შემცირება - ${reduceProduct.name} (-${quantity} ცალი × $${reduceProduct.unit_price}) - დაბრუნება/გაფუჭება`,
+        company_id: null,
+        related_order_id: null,
+        warehouse_id: selectedWarehouse,
+      }]);
+
+    if (financeError) {
+      toast({
+        title: "გაფრთხილება",
+        description: "მარაგი განახლდა, მაგრამ ფინანსური ჩანაწერი ვერ შეიქმნა: " + financeError.message,
+        variant: "destructive",
+      });
+    }
+
+    toast({
+      title: "მარაგი შემცირდა",
+      description: `${quantity} ერთეული ამოღებულია და $${deductedValue.toFixed(2)} გამოიქვითა ფინანსებიდან`,
+    });
+
+    setShowReduceDialog(false);
+    setReduceProduct(null);
+    setReduceQuantity("");
     fetchProducts();
   };
 
@@ -679,6 +915,18 @@ const Warehouse = () => {
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setReduceProduct(product);
+                            setShowReduceDialog(true);
+                          }}
+                          className="gap-1"
+                        >
+                          <TrendingDown className="h-4 w-4" />
+                          შემცირება
+                        </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -917,6 +1165,63 @@ const Warehouse = () => {
               </Button>
               <Button onClick={handleCreateOrder}>
                 Create Order
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showReduceDialog} onOpenChange={setShowReduceDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>პროდუქტის ხელით შემცირება</DialogTitle>
+              <DialogDescription>
+                {reduceProduct && (
+                  <>
+                    <div className="mt-2">
+                      <span className="font-semibold">{reduceProduct.name}</span>
+                    </div>
+                    <div className="mt-1 text-sm">
+                      მიმდინარე მარაგი: <span className="font-bold">{reduceProduct.current_stock}</span> ერთეული
+                    </div>
+                    <div className="text-sm">
+                      ერთეულის ფასი: <span className="font-bold">${reduceProduct.unit_price.toFixed(2)}</span>
+                    </div>
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="reduce-quantity">შესამცირებელი რაოდენობა</Label>
+                <Input
+                  id="reduce-quantity"
+                  type="number"
+                  min="1"
+                  max={reduceProduct?.current_stock}
+                  value={reduceQuantity}
+                  onChange={(e) => setReduceQuantity(e.target.value)}
+                  placeholder="შეიყვანეთ რაოდენობა"
+                />
+              </div>
+              {reduceQuantity && reduceProduct && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">გამოქვითული ღირებულება</div>
+                  <div className="text-2xl font-bold text-primary">
+                    ${(parseInt(reduceQuantity) * reduceProduct.unit_price).toFixed(2)}
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setShowReduceDialog(false);
+                setReduceProduct(null);
+                setReduceQuantity("");
+              }}>
+                გაუქმება
+              </Button>
+              <Button onClick={handleManualReduce} variant="destructive">
+                შემცირება
               </Button>
             </DialogFooter>
           </DialogContent>
