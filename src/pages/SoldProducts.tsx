@@ -204,6 +204,39 @@ const SoldProducts = () => {
   const monthlySold = monthlyTransactions.reduce((acc, t) => acc + t.quantity, 0);
   const monthlyRevenue = monthlyTransactions.reduce((acc, t) => acc + t.line_total, 0);
 
+  // Get product breakdown for selected month
+  const monthlyProductMap = new Map<string, { name: string; quantity: number; revenue: number }>();
+  monthlyTransactions.forEach(t => {
+    if (!monthlyProductMap.has(t.product_name)) {
+      monthlyProductMap.set(t.product_name, { name: t.product_name, quantity: 0, revenue: 0 });
+    }
+    const product = monthlyProductMap.get(t.product_name)!;
+    product.quantity += t.quantity;
+    product.revenue += t.line_total;
+  });
+  const monthlyProducts = Array.from(monthlyProductMap.values()).sort((a, b) => b.quantity - a.quantity);
+
+  // Calculate previous month data for comparison
+  const selectedDate = new Date(selectedMonth + "-01");
+  const previousMonth = new Date(selectedDate);
+  previousMonth.setMonth(previousMonth.getMonth() - 1);
+  const previousMonthString = previousMonth.toISOString().slice(0, 7);
+
+  const previousMonthTransactions = transactions.filter(t => 
+    t.created_at.startsWith(previousMonthString)
+  );
+
+  const previousMonthlySold = previousMonthTransactions.reduce((acc, t) => acc + t.quantity, 0);
+  const previousMonthlyRevenue = previousMonthTransactions.reduce((acc, t) => acc + t.line_total, 0);
+
+  // Calculate percentage changes
+  const quantityChange = previousMonthlySold > 0 
+    ? ((monthlySold - previousMonthlySold) / previousMonthlySold) * 100 
+    : 0;
+  const revenueChange = previousMonthlyRevenue > 0 
+    ? ((monthlyRevenue - previousMonthlyRevenue) / previousMonthlyRevenue) * 100 
+    : 0;
+
   // Filter transactions by selected year
   const yearlyTransactions = transactions.filter(t => 
     new Date(t.created_at).getFullYear().toString() === selectedYear
@@ -354,25 +387,87 @@ const SoldProducts = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
-                  <Package className="h-4 w-4 text-primary" />
-                  გაყიდული ერთეული
+            <div className="space-y-6">
+              {/* Current Month Stats */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="p-4 border rounded-lg">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                    <Package className="h-4 w-4 text-primary" />
+                    გაყიდული ერთეული (ლიტრი)
+                  </div>
+                  <div className="text-2xl font-bold text-primary">
+                    {monthlySold.toLocaleString()}
+                  </div>
+                  {previousMonthlySold > 0 && (
+                    <div className={`text-sm mt-1 flex items-center gap-1 ${quantityChange >= 0 ? 'text-success' : 'text-warning'}`}>
+                      {quantityChange >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                      {Math.abs(quantityChange).toFixed(1)}% წინა თვესთან შედარებით
+                    </div>
+                  )}
                 </div>
-                <div className="text-2xl font-bold text-primary">
-                  {monthlySold.toLocaleString()}
+                <div className="p-4 border rounded-lg">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                    <DollarSign className="h-4 w-4 text-success" />
+                    შემოსავალი
+                  </div>
+                  <div className="text-2xl font-bold text-success">
+                    ${monthlyRevenue.toLocaleString()}
+                  </div>
+                  {previousMonthlyRevenue > 0 && (
+                    <div className={`text-sm mt-1 flex items-center gap-1 ${revenueChange >= 0 ? 'text-success' : 'text-warning'}`}>
+                      {revenueChange >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                      {Math.abs(revenueChange).toFixed(1)}% წინა თვესთან შედარებით
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-success" />
-                  შემოსავალი
+
+              {/* Previous Month Comparison */}
+              {previousMonthlySold > 0 && (
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <h4 className="font-semibold mb-3 text-sm text-muted-foreground">
+                    წინა თვე ({getMonthName(previousMonthString)})
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">გაყიდული: </span>
+                      <span className="font-bold">{previousMonthlySold.toLocaleString()} ლიტრი</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">შემოსავალი: </span>
+                      <span className="font-bold">${previousMonthlyRevenue.toLocaleString()}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-success">
-                  ${monthlyRevenue.toLocaleString()}
+              )}
+
+              {/* Product Breakdown for Selected Month */}
+              {monthlyProducts.length > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-3">გაყიდული პროდუქტები არჩეულ თვეში:</h4>
+                  <div className="space-y-2">
+                    {monthlyProducts.map((product, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                        <span className="font-medium">{product.name}</span>
+                        <div className="flex gap-6 text-sm">
+                          <span className="text-muted-foreground">
+                            რაოდენობა: <span className="font-bold text-foreground">{product.quantity.toLocaleString()} ლიტრი</span>
+                          </span>
+                          <span className="text-muted-foreground">
+                            შემოსავალი: <span className="font-bold text-success">${product.revenue.toFixed(2)}</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {monthlyProducts.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  არჩეულ თვეში გაყიდვების მონაცემები არ არის
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
