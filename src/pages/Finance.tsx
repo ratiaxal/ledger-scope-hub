@@ -70,6 +70,9 @@ const Finance = () => {
     amount: "",
     note: "",
   });
+  const [selectedPurchases, setSelectedPurchases] = useState<Set<string>>(new Set());
+  const [showDeletePurchasesDialog, setShowDeletePurchasesDialog] = useState(false);
+  const [deletePurchasesAction, setDeletePurchasesAction] = useState<"selected" | "all">("selected");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -388,6 +391,120 @@ const Finance = () => {
     }
   };
 
+  const togglePurchaseSelection = (productId: string) => {
+    const newSelection = new Set(selectedPurchases);
+    if (newSelection.has(productId)) {
+      newSelection.delete(productId);
+    } else {
+      newSelection.add(productId);
+    }
+    setSelectedPurchases(newSelection);
+  };
+
+  const toggleSelectAllPurchases = () => {
+    if (selectedPurchases.size === productPurchases.length) {
+      setSelectedPurchases(new Set());
+    } else {
+      setSelectedPurchases(new Set(productPurchases.map(p => p.product_id)));
+    }
+  };
+
+  const initiateDeletePurchases = (action: "selected" | "all") => {
+    if (action === "selected" && selectedPurchases.size === 0) {
+      toast({
+        title: "პროდუქტები არ არის არჩეული",
+        description: "გთხოვთ აირჩიოთ პროდუქტები წასაშლელად",
+        variant: "destructive",
+      });
+      return;
+    }
+    setDeletePurchasesAction(action);
+    setShowDeletePurchasesDialog(true);
+  };
+
+  const handleDeletePurchases = async () => {
+    const productsToDelete = deletePurchasesAction === "all"
+      ? productPurchases
+      : productPurchases.filter(p => selectedPurchases.has(p.product_id));
+
+    if (productsToDelete.length === 0) return;
+
+    try {
+      // Get all orders for this company
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('status', 'completed');
+
+      if (ordersError) throw ordersError;
+      if (!ordersData || ordersData.length === 0) return;
+
+      const orderIds = ordersData.map(order => order.id);
+
+      // For each product to delete
+      for (const product of productsToDelete) {
+        // Get order lines for this product
+        const { data: orderLinesData, error: orderLinesError } = await supabase
+          .from('order_lines')
+          .select('*')
+          .in('order_id', orderIds)
+          .eq('product_id', product.product_id);
+
+        if (orderLinesError) throw orderLinesError;
+        if (!orderLinesData) continue;
+
+        // Calculate total quantity to return to inventory
+        const totalQuantity = orderLinesData.reduce((sum, line) => sum + line.quantity, 0);
+
+        // Update product inventory - add back the quantities
+        const { data: productData, error: productError } = await supabase
+          .from('products')
+          .select('current_stock')
+          .eq('id', product.product_id)
+          .single();
+
+        if (!productError && productData) {
+          await supabase
+            .from('products')
+            .update({ current_stock: productData.current_stock + totalQuantity })
+            .eq('id', product.product_id);
+        }
+
+        // Delete the order lines
+        await supabase
+          .from('order_lines')
+          .delete()
+          .in('id', orderLinesData.map(line => line.id));
+
+        // Record inventory transactions for returns
+        await supabase
+          .from('inventory_transactions')
+          .insert(orderLinesData.map(line => ({
+            product_id: product.product_id,
+            change_quantity: line.quantity,
+            reason: 'correction' as const,
+            comment: 'დაბრუნება - შესყიდვის წაშლა',
+          })));
+      }
+
+      toast({
+        title: "წარმატებით წაიშალა",
+        description: `${productsToDelete.length} პროდუქტის შესყიდვა წაიშალა და მარაგები განახლდა`,
+      });
+
+      setSelectedPurchases(new Set());
+      setShowDeletePurchasesDialog(false);
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "წაშლის შეცდომა",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -504,11 +621,39 @@ const Finance = () => {
         {/* Product Purchases */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              პროდუქტების შესყიდვები
-            </CardTitle>
-            <CardDescription>რა პროდუქტებს ყიდულობს ეს კომპანია და რა რაოდენობით</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  პროდუქტების შესყიდვები
+                </CardTitle>
+                <CardDescription>რა პროდუქტებს ყიდულობს ეს კომპანია და რა რაოდენობით</CardDescription>
+              </div>
+              {productPurchases.length > 0 && (
+                <div className="flex gap-2">
+                  {selectedPurchases.size > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => initiateDeletePurchases("selected")}
+                      className="gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      არჩეულის წაშლა ({selectedPurchases.size})
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => initiateDeletePurchases("all")}
+                    className="gap-2 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    ყველას წაშლა
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {productPurchases.length === 0 ? (
@@ -517,23 +662,36 @@ const Finance = () => {
               </div>
             ) : (
               <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <Checkbox
+                    checked={selectedPurchases.size === productPurchases.length}
+                    onCheckedChange={toggleSelectAllPurchases}
+                  />
+                  <span className="text-sm text-muted-foreground">ყველას არჩევა</span>
+                </div>
                 {productPurchases.map((product) => (
                   <div
                     key={product.product_id}
                     className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-lg">{product.product_name}</h3>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                          <span>რაოდენობა: <span className="font-bold text-foreground">{product.total_quantity.toLocaleString()} ლიტრი</span></span>
-                          <span>ფასი: <span className="font-bold text-foreground">${product.unit_price.toFixed(2)}</span></span>
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={selectedPurchases.has(product.product_id)}
+                        onCheckedChange={() => togglePurchaseSelection(product.product_id)}
+                      />
+                      <div className="flex-1 flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold text-lg">{product.product_name}</h3>
+                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                            <span>რაოდენობა: <span className="font-bold text-foreground">{product.total_quantity.toLocaleString()} ლიტრი</span></span>
+                            <span>ფასი: <span className="font-bold text-foreground">${product.unit_price.toFixed(2)}</span></span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-muted-foreground mb-1">სულ ღირებულება</div>
-                        <div className="text-2xl font-bold text-primary">
-                          ${product.total_amount.toFixed(2)}
+                        <div className="text-right">
+                          <div className="text-xs text-muted-foreground mb-1">სულ ღირებულება</div>
+                          <div className="text-2xl font-bold text-primary">
+                            ${product.total_amount.toFixed(2)}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -693,6 +851,26 @@ const Finance = () => {
               <AlertDialogCancel>გაუქმება</AlertDialogCancel>
               <AlertDialogAction onClick={handleDeleteEntries} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                 წაშლა
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={showDeletePurchasesDialog} onOpenChange={setShowDeletePurchasesDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>შესყიდვების წაშლა და დაბრუნება</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deletePurchasesAction === "all" 
+                  ? `ეს წაშლის ყველა ${productPurchases.length} პროდუქტის შესყიდვას და დააბრუნებს რაოდენობებს საწყობში. ეს მოქმედება ვერ გაუქმდება.`
+                  : `ეს წაშლის ${selectedPurchases.size} პროდუქტის შესყიდვას და დააბრუნებს რაოდენობებს საწყობში. ეს მოქმედება ვერ გაუქმდება.`
+                }
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>გაუქმება</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeletePurchases} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                წაშლა და დაბრუნება
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
