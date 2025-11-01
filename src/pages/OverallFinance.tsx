@@ -297,6 +297,41 @@ const OverallFinance = () => {
 
   const yearlyBalance = yearlyIncome - yearlyExpense;
 
+  // Fetch yearly sold quantities
+  const [yearlySoldQuantity, setYearlySoldQuantity] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchYearlySoldQuantity = async () => {
+      const yearStart = `${selectedYear}-01-01T00:00:00`;
+      const yearEnd = `${selectedYear}-12-31T23:59:59`;
+
+      const { data: ordersData } = await supabase
+        .from("orders")
+        .select("id, completed_at")
+        .eq("status", "completed")
+        .gte("completed_at", yearStart)
+        .lte("completed_at", yearEnd);
+
+      if (ordersData && ordersData.length > 0) {
+        const orderIds = ordersData.map(o => o.id);
+        
+        const { data: orderLinesData } = await supabase
+          .from("order_lines")
+          .select("quantity")
+          .in("order_id", orderIds);
+
+        const totalQuantity = orderLinesData?.reduce((acc, line) => acc + line.quantity, 0) || 0;
+        setYearlySoldQuantity(totalQuantity);
+      } else {
+        setYearlySoldQuantity(0);
+      }
+    };
+
+    if (user) {
+      fetchYearlySoldQuantity();
+    }
+  }, [selectedYear, user]);
+
   // Filter entries by date range
   const dateRangeEntries = dateRangeFrom && dateRangeTo 
     ? entries.filter(e => {
@@ -627,7 +662,7 @@ const OverallFinance = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
               <div className="p-4 border rounded-lg">
                 <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                   <TrendingUp className="h-4 w-4 text-success" />
@@ -653,6 +688,15 @@ const OverallFinance = () => {
                 </div>
                 <div className={`text-2xl font-bold ${yearlyBalance >= 0 ? "text-success" : "text-destructive"}`}>
                   ${yearlyBalance.toLocaleString()}
+                </div>
+              </div>
+              <div className="p-4 border rounded-lg">
+                <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  გაყიდული რაოდენობა
+                </div>
+                <div className="text-2xl font-bold text-primary">
+                  {yearlySoldQuantity.toLocaleString()}
                 </div>
               </div>
             </div>
