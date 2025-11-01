@@ -57,6 +57,7 @@ const Orders = () => {
     quantity: "",
     total: "",
     paymentAmount: "",
+    manualTotal: "",
   });
 
   const [useCustomCompany, setUseCustomCompany] = useState(false);
@@ -311,7 +312,7 @@ const Orders = () => {
     const companyName = useCustomCompany ? newOrder.customCompany : newOrder.company;
     const selectedCompany = companies.find(c => c.name === newOrder.company);
     const paymentAmountValue = parseFloat(newOrder.paymentAmount) || 0;
-    const orderTotal = calculateOrderTotal();
+    const orderTotal = newOrder.manualTotal !== '' ? parseFloat(newOrder.manualTotal) : calculateOrderTotal();
 
     // Insert order
     const { data: orderData, error: orderError } = await supabase
@@ -359,7 +360,7 @@ const Orders = () => {
     }
 
     toast({ title: "Order created successfully" });
-    setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "", paymentAmount: "" });
+    setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "", paymentAmount: "", manualTotal: "" });
     setOrderLines([]);
     setSelectedProducts(new Set());
     setShowForm(false);
@@ -1196,10 +1197,24 @@ const Orders = () => {
                       </div>
                     </div>
                   ))}
-                  <div className="pt-3 border-t">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold">Order Total:</span>
-                      <span className="text-2xl font-bold text-primary">${calculateOrderTotal().toFixed(2)}</span>
+                  <div className="pt-3 border-t space-y-3">
+                    <div className="flex justify-between items-center text-sm text-muted-foreground">
+                      <span>Calculated Total:</span>
+                      <span>${calculateOrderTotal().toFixed(2)}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="manualTotal" className="text-lg font-bold">Order Total ($)</Label>
+                      <Input
+                        id="manualTotal"
+                        type="number"
+                        step="0.01"
+                        value={newOrder.manualTotal === '' ? '' : newOrder.manualTotal}
+                        onChange={(e) => setNewOrder({ ...newOrder, manualTotal: e.target.value })}
+                        placeholder={calculateOrderTotal().toFixed(2)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Leave empty to use calculated total, or enter custom amount
+                      </p>
                     </div>
                   </div>
                 </div>
