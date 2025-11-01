@@ -1181,10 +1181,10 @@ const Orders = () => {
                           <Input
                             id={`price-${line.product_id}`}
                             type="number"
-                            min="0"
                             step="0.01"
-                            value={line.unit_price}
+                            value={line.unit_price === 0 ? '' : line.unit_price}
                             onChange={(e) => handleUpdatePrice(line.product_id, parseFloat(e.target.value) || 0)}
+                            placeholder="0"
                           />
                         </div>
                         <div className="space-y-1">
