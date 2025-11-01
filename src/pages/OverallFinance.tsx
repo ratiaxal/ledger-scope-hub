@@ -34,6 +34,8 @@ const OverallFinance = () => {
   const [entries, setEntries] = useState<FinanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [clearing, setClearing] = useState(false);
+  const [selectedMonthNum, setSelectedMonthNum] = useState<string>((new Date().getMonth() + 1).toString().padStart(2, '0'));
+  const [selectedMonthYear, setSelectedMonthYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7));
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [dateRangeFrom, setDateRangeFrom] = useState<string>("");
@@ -233,9 +235,10 @@ const OverallFinance = () => {
     entries.map(e => new Date(e.created_at).getFullYear().toString())
   )).sort().reverse();
 
-  // Filter entries by selected month
+  // Filter entries by selected month and year combination
+  const selectedMonthYearString = `${selectedMonthYear}-${selectedMonthNum}`;
   const monthlyEntries = entries.filter(e => 
-    e.created_at.startsWith(selectedMonth)
+    e.created_at.startsWith(selectedMonthYearString)
   );
 
   const monthlyIncome = monthlyEntries
@@ -247,6 +250,37 @@ const OverallFinance = () => {
     .reduce((acc, e) => acc + e.amount, 0);
 
   const monthlyBalance = monthlyIncome - monthlyExpense;
+
+  // Calculate previous month data for comparison
+  const currentMonthDate = new Date(`${selectedMonthYear}-${selectedMonthNum}-01`);
+  const previousMonthDate = new Date(currentMonthDate);
+  previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
+  const previousMonthString = previousMonthDate.toISOString().slice(0, 7);
+
+  const previousMonthEntries = entries.filter(e => 
+    e.created_at.startsWith(previousMonthString)
+  );
+
+  const previousMonthIncome = previousMonthEntries
+    .filter(e => e.type === "income")
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const previousMonthExpense = previousMonthEntries
+    .filter(e => e.type === "expense")
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const previousMonthBalance = previousMonthIncome - previousMonthExpense;
+
+  // Calculate percentage changes
+  const incomeChange = previousMonthIncome > 0 
+    ? ((monthlyIncome - previousMonthIncome) / previousMonthIncome) * 100 
+    : 0;
+  const expenseChange = previousMonthExpense > 0 
+    ? ((monthlyExpense - previousMonthExpense) / previousMonthExpense) * 100 
+    : 0;
+  const balanceChange = previousMonthBalance !== 0
+    ? ((monthlyBalance - previousMonthBalance) / Math.abs(previousMonthBalance)) * 100 
+    : 0;
 
   // Filter entries by selected year
   const yearlyEntries = entries.filter(e => 
@@ -285,6 +319,12 @@ const OverallFinance = () => {
   const getMonthName = (dateString: string) => {
     const date = new Date(dateString + "-01");
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  const getMonthOnlyName = (monthNum: string) => {
+    const monthNames = ['იანვარი', 'თებერვალი', 'მარტი', 'აპრილი', 'მაისი', 'ივნისი', 
+                        'ივლისი', 'აგვისტო', 'სექტემბერი', 'ოქტომბერი', 'ნოემბერი', 'დეკემბერი'];
+    return monthNames[parseInt(monthNum) - 1] || '';
   };
 
   if (authLoading || loading) {
@@ -437,55 +477,120 @@ const OverallFinance = () => {
                 </CardTitle>
                 <CardDescription>შემოსავალი და ხარჯები ყველა კომპანიაში თვის მიხედვით</CardDescription>
               </div>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMonths.length > 0 ? (
-                    availableMonths.map(month => (
+              <div className="flex gap-2">
+                <Select value={selectedMonthNum} onValueChange={setSelectedMonthNum}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map(month => (
                       <SelectItem key={month} value={month}>
-                        {getMonthName(month)}
+                        {getMonthOnlyName(month)}
                       </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value={selectedMonth}>
-                      {getMonthName(selectedMonth)}
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedMonthYear} onValueChange={setSelectedMonthYear}>
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.length > 0 ? (
+                      availableYears.map(year => (
+                        <SelectItem key={year} value={year}>
+                          {year}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value={selectedMonthYear}>
+                        {selectedMonthYear}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
-                  <TrendingUp className="h-4 w-4 text-success" />
-                  შემოსავალი
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="p-4 border rounded-lg">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                    <TrendingUp className="h-4 w-4 text-success" />
+                    შემოსავალი
+                  </div>
+                  <div className="text-2xl font-bold text-success">
+                    ${monthlyIncome.toLocaleString()}
+                  </div>
+                  {previousMonthIncome > 0 && (
+                    <div className={`text-sm mt-1 flex items-center gap-1 ${incomeChange >= 0 ? 'text-success' : 'text-warning'}`}>
+                      {incomeChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      {Math.abs(incomeChange).toFixed(1)}% წინა თვესთან შედარებით
+                    </div>
+                  )}
                 </div>
-                <div className="text-2xl font-bold text-success">
-                  ${monthlyIncome.toLocaleString()}
+                <div className="p-4 border rounded-lg">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                    <TrendingDown className="h-4 w-4 text-destructive" />
+                    ხარჯები
+                  </div>
+                  <div className="text-2xl font-bold text-destructive">
+                    ${monthlyExpense.toLocaleString()}
+                  </div>
+                  {previousMonthExpense > 0 && (
+                    <div className={`text-sm mt-1 flex items-center gap-1 ${expenseChange <= 0 ? 'text-success' : 'text-warning'}`}>
+                      {expenseChange <= 0 ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
+                      {Math.abs(expenseChange).toFixed(1)}% წინა თვესთან შედარებით
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                    <DollarSign className="h-4 w-4" />
+                    ბალანსი
+                  </div>
+                  <div className={`text-2xl font-bold ${monthlyBalance >= 0 ? "text-success" : "text-destructive"}`}>
+                    ${monthlyBalance.toLocaleString()}
+                  </div>
+                  {previousMonthBalance !== 0 && (
+                    <div className={`text-sm mt-1 flex items-center gap-1 ${balanceChange >= 0 ? 'text-success' : 'text-warning'}`}>
+                      {balanceChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      {Math.abs(balanceChange).toFixed(1)}% წინა თვესთან შედარებით
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
-                  <TrendingDown className="h-4 w-4 text-destructive" />
-                  ხარჯები
+
+              {/* Previous Month Comparison */}
+              {previousMonthIncome > 0 && (
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <h4 className="font-semibold mb-3 text-sm text-muted-foreground">
+                    წინა თვე ({getMonthName(previousMonthString)})
+                  </h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">შემოსავალი: </span>
+                      <span className="font-bold text-success">${previousMonthIncome.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">ხარჯები: </span>
+                      <span className="font-bold text-destructive">${previousMonthExpense.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">ბალანსი: </span>
+                      <span className={`font-bold ${previousMonthBalance >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        ${previousMonthBalance.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-destructive">
-                  ${monthlyExpense.toLocaleString()}
+              )}
+
+              {monthlyEntries.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  არჩეულ თვეში ფინანსური ჩანაწერები არ არის
                 </div>
-              </div>
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4" />
-                  ბალანსი
-                </div>
-                <div className={`text-2xl font-bold ${monthlyBalance >= 0 ? "text-success" : "text-destructive"}`}>
-                  ${monthlyBalance.toLocaleString()}
-                </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
