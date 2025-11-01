@@ -19,6 +19,12 @@ interface Product {
   current_stock: number;
   created_at: string;
   updated_at: string;
+  warehouse_id: string | null;
+}
+
+interface Warehouse {
+  id: string;
+  name: string;
 }
 
 interface OrderLine {
@@ -31,6 +37,8 @@ interface OrderLine {
 
 const Warehouse = () => {
   const { toast } = useToast();
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
   const [products, setProducts] = useState<Product[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -53,9 +61,36 @@ const Warehouse = () => {
   });
 
   useEffect(() => {
-    fetchProducts();
+    fetchWarehouses();
     fetchCompanies();
   }, []);
+
+  useEffect(() => {
+    if (selectedWarehouse) {
+      fetchProducts();
+    }
+  }, [selectedWarehouse]);
+
+  const fetchWarehouses = async () => {
+    const { data, error } = await supabase
+      .from("warehouses")
+      .select("*")
+      .order("name");
+
+    if (error) {
+      toast({
+        title: "Error loading warehouses",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setWarehouses(data || []);
+      // Auto-select first warehouse if none selected
+      if (data && data.length > 0 && !selectedWarehouse) {
+        setSelectedWarehouse(data[0].id);
+      }
+    }
+  };
 
   const fetchCompanies = async () => {
     const { data, error } = await supabase
@@ -75,9 +110,12 @@ const Warehouse = () => {
   };
 
   const fetchProducts = async () => {
+    if (!selectedWarehouse) return;
+
     const { data, error } = await supabase
       .from("products")
       .select("*")
+      .eq("warehouse_id", selectedWarehouse)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -113,6 +151,7 @@ const Warehouse = () => {
         sku: newItem.sku || null,
         unit_price: unitPrice,
         current_stock: quantity,
+        warehouse_id: selectedWarehouse,
       }])
       .select()
       .single();
@@ -135,6 +174,7 @@ const Warehouse = () => {
         comment: `საწყობის საწყისი მარაგი - ${newItem.name} (${quantity} ცალი × $${unitPrice})`,
         company_id: null,
         related_order_id: null,
+        warehouse_id: selectedWarehouse,
       }]);
 
     if (financeError) {
@@ -187,6 +227,7 @@ const Warehouse = () => {
           comment: `საწყობის მარაგის დამატება - ${product.name} (+${actualChange} ცალი × $${product.unit_price})`,
           company_id: null,
           related_order_id: null,
+          warehouse_id: selectedWarehouse,
         }]);
 
       if (financeError) {
@@ -368,6 +409,7 @@ const Warehouse = () => {
             name: line.product_name,
             unit_price: line.unit_price,
             current_stock: 0, // Manual order entries don't add to stock
+            warehouse_id: selectedWarehouse,
           }])
           .select()
           .single();
@@ -429,17 +471,49 @@ const Warehouse = () => {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground mb-2 inline-block">
               ← უკან მთავარზე
             </Link>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Package className="h-8 w-8 text-primary" />
-              საერთო საწყობი და ინვენტარი
-            </h1>
-            <p className="text-muted-foreground">მართეთ პროდუქტები ყველა კომპანიისთვის</p>
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-3xl font-bold flex items-center gap-2">
+                  <Package className="h-8 w-8 text-primary" />
+                  საწყობი და ინვენტარი
+                </h1>
+                <p className="text-muted-foreground">მართეთ პროდუქტები და საწყობი</p>
+              </div>
+              <div className="ml-8">
+                <Label className="text-sm text-muted-foreground mb-2">Select Warehouse</Label>
+                <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
+                  <SelectTrigger className="w-[250px]">
+                    <SelectValue placeholder="Choose warehouse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {warehouses.map((warehouse) => (
+                      <SelectItem key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
           <div className="flex gap-2">
+            <Button 
+              onClick={() => {
+                if (selectedWarehouse) {
+                  window.location.href = `/warehouse-finance/${selectedWarehouse}`;
+                }
+              }} 
+              variant="secondary" 
+              className="gap-2"
+              disabled={!selectedWarehouse}
+            >
+              <DollarSign className="h-4 w-4" />
+              ფინანსები
+            </Button>
             <Button onClick={() => setShowOrderDialog(true)} variant="default" className="gap-2">
               <ShoppingCart className="h-4 w-4" />
               შეკვეთის შექმნა

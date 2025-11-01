@@ -10,6 +10,7 @@ import OverallFinance from "./pages/OverallFinance";
 import SoldProducts from "./pages/SoldProducts";
 import Orders from "./pages/Orders";
 import Warehouse from "./pages/Warehouse";
+import WarehouseFinance from "./pages/WarehouseFinance";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/finance/:companyId" element={<Finance />} />
             <Route path="/orders/:companyId" element={<Orders />} />
             <Route path="/warehouse" element={<Warehouse />} />
+            <Route path="/warehouse-finance/:warehouseId" element={<WarehouseFinance />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

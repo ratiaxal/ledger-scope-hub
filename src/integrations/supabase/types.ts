@@ -54,6 +54,7 @@ export type Database = {
           id: string
           related_order_id: string | null
           type: Database["public"]["Enums"]["finance_type"]
+          warehouse_id: string | null
         }
         Insert: {
           amount: number
@@ -64,6 +65,7 @@ export type Database = {
           id?: string
           related_order_id?: string | null
           type: Database["public"]["Enums"]["finance_type"]
+          warehouse_id?: string | null
         }
         Update: {
           amount?: number
@@ -74,6 +76,7 @@ export type Database = {
           id?: string
           related_order_id?: string | null
           type?: Database["public"]["Enums"]["finance_type"]
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -90,6 +93,13 @@ export type Database = {
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "finance_entries_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
         ]
       }
       inventory_transactions: {
@@ -102,6 +112,7 @@ export type Database = {
           product_id: string
           reason: Database["public"]["Enums"]["inventory_reason"]
           related_order_id: string | null
+          warehouse_id: string | null
         }
         Insert: {
           change_quantity: number
@@ -112,6 +123,7 @@ export type Database = {
           product_id: string
           reason: Database["public"]["Enums"]["inventory_reason"]
           related_order_id?: string | null
+          warehouse_id?: string | null
         }
         Update: {
           change_quantity?: number
@@ -122,6 +134,7 @@ export type Database = {
           product_id?: string
           reason?: Database["public"]["Enums"]["inventory_reason"]
           related_order_id?: string | null
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -136,6 +149,13 @@ export type Database = {
             columns: ["related_order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -247,6 +267,7 @@ export type Database = {
           sku: string | null
           unit_price: number
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           created_at?: string
@@ -256,6 +277,7 @@ export type Database = {
           sku?: string | null
           unit_price: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           created_at?: string
@@ -265,8 +287,17 @@ export type Database = {
           sku?: string | null
           unit_price?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -313,6 +344,27 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      warehouses: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
