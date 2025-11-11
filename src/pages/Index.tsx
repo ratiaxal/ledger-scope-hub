@@ -203,7 +203,7 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-4">
           {/* Overall Financials Card */}
           <Card className="bg-primary/5 border-primary/20">
             <CardHeader>
@@ -241,6 +241,27 @@ const Index = () => {
                 <Button className="w-full gap-2">
                   <FileText className="h-4 w-4" />
                   გაყიდული პროდუქტების ნახვა
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          {/* All Orders Card */}
+          <Card className="bg-primary/5 border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-6 w-6 text-primary" />
+                ყველა შეკვეთა
+              </CardTitle>
+              <CardDescription>
+                ნახეთ ყველა შეკვეთა და სტატისტიკა ყველა კომპანიისთვის
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/all-orders">
+                <Button className="w-full gap-2">
+                  <FileText className="h-4 w-4" />
+                  ყველა შეკვეთის ნახვა
                 </Button>
               </Link>
             </CardContent>

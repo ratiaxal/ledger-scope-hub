@@ -58,6 +58,7 @@ const Orders = () => {
     total: "",
     paymentAmount: "",
     manualTotal: "",
+    notes: "",
   });
 
   const [useCustomCompany, setUseCustomCompany] = useState(false);
@@ -326,6 +327,7 @@ const Orders = () => {
         payment_received_amount: paymentAmountValue,
         payment_status: paymentAmountValue >= orderTotal ? "paid" : (paymentAmountValue > 0 ? "partially_paid" : "unpaid"),
         debt_flag: paymentAmountValue < orderTotal,
+        notes: newOrder.notes || null,
       }])
       .select()
       .single();
@@ -360,7 +362,7 @@ const Orders = () => {
     }
 
     toast({ title: "Order created successfully" });
-    setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "", paymentAmount: "", manualTotal: "" });
+    setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "", paymentAmount: "", manualTotal: "", notes: "" });
     setOrderLines([]);
     setSelectedProducts(new Set());
     setShowForm(false);
@@ -1233,6 +1235,20 @@ const Orders = () => {
                 />
                 <p className="text-xs text-muted-foreground">
                   Enter payment amount received at order creation. Leave empty if no payment received yet.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">კომენტარი / შენიშვნა</Label>
+                <textarea
+                  id="notes"
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="მაგ: თეთრი ღვინო, 2 ლიტრიანი ბოთლებით"
+                  value={newOrder.notes}
+                  onChange={(e) => setNewOrder({ ...newOrder, notes: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  დამატებითი ინფორმაცია ღვინის ტიპის, ფორმის და სხვა დეტალების შესახებ
                 </p>
               </div>
 
