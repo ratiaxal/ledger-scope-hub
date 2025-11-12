@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,8 @@ const Warehouse = () => {
   const [showReduceDialog, setShowReduceDialog] = useState(false);
   const [reduceProduct, setReduceProduct] = useState<Product | null>(null);
   const [reduceQuantity, setReduceQuantity] = useState("");
+  const holdIntervalRef = useRef<number | null>(null);
+  const holdTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetchWarehouses();
@@ -73,6 +75,36 @@ const Warehouse = () => {
       fetchProducts();
     }
   }, [selectedWarehouse]);
+
+  useEffect(() => {
+    return () => {
+      if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
+      if (holdTimeoutRef.current) clearTimeout(holdTimeoutRef.current);
+    };
+  }, []);
+
+  const handleStopHold = () => {
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+  };
+
+  const handleStartHold = (productId: string, delta: number) => {
+    // First click
+    handleUpdateStock(productId, delta);
+    
+    // Start continuous increment after delay
+    holdTimeoutRef.current = window.setTimeout(() => {
+      holdIntervalRef.current = window.setInterval(() => {
+        handleUpdateStock(productId, delta);
+      }, 100);
+    }, 500);
+  };
 
   const fetchWarehouses = async () => {
     const { data, error } = await supabase
@@ -903,7 +935,11 @@ const Warehouse = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleUpdateStock(product.id, -1)}
+                          onMouseDown={() => handleStartHold(product.id, -1)}
+                          onMouseUp={handleStopHold}
+                          onMouseLeave={handleStopHold}
+                          onTouchStart={() => handleStartHold(product.id, -1)}
+                          onTouchEnd={handleStopHold}
                           disabled={product.current_stock === 0}
                         >
                           <TrendingDown className="h-4 w-4" />
@@ -911,7 +947,11 @@ const Warehouse = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleUpdateStock(product.id, 1)}
+                          onMouseDown={() => handleStartHold(product.id, 1)}
+                          onMouseUp={handleStopHold}
+                          onMouseLeave={handleStopHold}
+                          onTouchStart={() => handleStartHold(product.id, 1)}
+                          onTouchEnd={handleStopHold}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
