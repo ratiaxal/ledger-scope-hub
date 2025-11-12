@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Plus, TrendingUp, TrendingDown, DollarSign, Package } from "lucide-react";
+import { Building2, Plus, TrendingUp, TrendingDown, DollarSign, Package, Trash2 } from "lucide-react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -152,6 +152,29 @@ const WarehouseFinance = () => {
 
   const handleWarehouseChange = (newWarehouseId: string) => {
     navigate(`/warehouse-finance/${newWarehouseId}`);
+  };
+
+  const handleDeleteEntry = async (entryId: string) => {
+    if (!confirm("Are you sure you want to delete this entry?")) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("finance_entries")
+      .delete()
+      .eq("id", entryId);
+
+    if (error) {
+      toast({
+        title: "Error deleting entry",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({ title: "Entry deleted successfully" });
+    fetchData();
   };
 
   const totalIncome = entries.filter(e => e.type === "income").reduce((acc, e) => acc + parseFloat(e.amount.toString()), 0);
@@ -331,8 +354,18 @@ const WarehouseFinance = () => {
                         </p>
                       </div>
                     </div>
-                    <div className={`text-xl font-bold ${entry.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                      {entry.type === 'income' ? '+' : '-'}${parseFloat(entry.amount.toString()).toFixed(2)}
+                    <div className="flex items-center gap-4">
+                      <div className={`text-xl font-bold ${entry.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                        {entry.type === 'income' ? '+' : '-'}${parseFloat(entry.amount.toString()).toFixed(2)}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteEntry(entry.id)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
