@@ -178,73 +178,6 @@ const Warehouse = () => {
     const unitPrice = parseFloat(newItem.price);
     const totalCost = quantity * unitPrice;
 
-    // Check if we're adding to Main Warehouse (Tbilisi)
-    const currentWarehouse = warehouses.find(w => w.id === selectedWarehouse);
-    const isMainWarehouse = currentWarehouse?.name === "Main Warehouse";
-
-    if (isMainWarehouse) {
-      // Find Village Warehouse
-      const villageWarehouse = warehouses.find(w => w.name === "Village Warehouse");
-      
-      if (villageWarehouse) {
-        // Check if product exists in Village Warehouse
-        const { data: villageProducts, error: villageCheckError } = await supabase
-          .from("products")
-          .select("*")
-          .eq("warehouse_id", villageWarehouse.id)
-          .eq("name", newItem.name);
-
-        if (villageCheckError) {
-          toast({
-            title: "Error checking Village Warehouse",
-            description: villageCheckError.message,
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (villageProducts && villageProducts.length > 0) {
-          const villageProduct = villageProducts[0];
-          
-          if (villageProduct.current_stock < quantity) {
-            toast({
-              title: "არასაკმარისი მარაგი სოფლის საწყობში",
-              description: `Village Warehouse-ში მხოლოდ ${villageProduct.current_stock} ერთეულია. თქვენ ცდილობთ ${quantity} ერთეულის გადატანას.`,
-              variant: "destructive",
-            });
-            return;
-          }
-
-          // Deduct from Village Warehouse
-          const newVillageStock = villageProduct.current_stock - quantity;
-          const { error: villageUpdateError } = await supabase
-            .from("products")
-            .update({ current_stock: newVillageStock })
-            .eq("id", villageProduct.id);
-
-          if (villageUpdateError) {
-            toast({
-              title: "Error updating Village Warehouse",
-              description: villageUpdateError.message,
-              variant: "destructive",
-            });
-            return;
-          }
-
-          // Record inventory transaction for Village Warehouse
-          await supabase
-            .from("inventory_transactions")
-            .insert([{
-              product_id: villageProduct.id,
-              change_quantity: -quantity,
-              reason: "correction",
-              comment: `გადატანილია Main Warehouse-ში`,
-              warehouse_id: villageWarehouse.id,
-            }]);
-        }
-      }
-    }
-
     // Insert or update product in current warehouse
     const { data: existingProducts, error: checkError } = await supabase
       .from("products")
@@ -286,16 +219,14 @@ const Warehouse = () => {
         .insert([{
           product_id: existingProduct.id,
           change_quantity: quantity,
-          reason: isMainWarehouse ? "correction" : "restock",
-          comment: isMainWarehouse ? `გადმოტანილია Village Warehouse-დან` : `საწყობის მარაგის დამატება`,
+          reason: "restock",
+          comment: `საწყობის მარაგის დამატება`,
           warehouse_id: selectedWarehouse,
         }]);
 
       toast({ 
         title: "პროდუქტი განახლდა",
-        description: isMainWarehouse 
-          ? `${quantity} ერთეული გადმოტანილია Village Warehouse-დან`
-          : `${quantity} ერთეული დაემატა მარაგს`
+        description: `${quantity} ერთეული დაემატა მარაგს`
       });
     } else {
       // Insert new product
@@ -320,30 +251,26 @@ const Warehouse = () => {
         return;
       }
 
-      // Record initial stock purchase as expense only if not from Village Warehouse transfer
-      if (!isMainWarehouse) {
-        const { error: financeError } = await supabase
-          .from("finance_entries")
-          .insert([{
-            type: "expense",
-            amount: totalCost,
-            comment: `საწყობის საწყისი მარაგი - ${newItem.name} (${quantity} ცალი × $${unitPrice})`,
-            company_id: null,
-            related_order_id: null,
-            warehouse_id: selectedWarehouse,
-          }]);
+      // Record initial stock purchase as expense
+      const { error: financeError } = await supabase
+        .from("finance_entries")
+        .insert([{
+          type: "expense",
+          amount: totalCost,
+          comment: `საწყობის საწყისი მარაგი - ${newItem.name} (${quantity} ცალი × $${unitPrice})`,
+          company_id: null,
+          related_order_id: null,
+          warehouse_id: selectedWarehouse,
+        }]);
 
-        if (financeError) {
-          toast({
-            title: "Warning",
-            description: "Product added but finance entry failed: " + financeError.message,
-            variant: "destructive",
-          });
-        } else {
-          toast({ title: "Product added and expense recorded" });
-        }
+      if (financeError) {
+        toast({
+          title: "Warning",
+          description: "Product added but finance entry failed: " + financeError.message,
+          variant: "destructive",
+        });
       } else {
-        toast({ title: "პროდუქტი დაემატა და გადმოტანა განხორციელდა" });
+        toast({ title: "Product added and expense recorded" });
       }
     }
 
