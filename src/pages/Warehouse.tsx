@@ -47,7 +47,6 @@ const Warehouse = () => {
     name: "",
     sku: "",
     stock: "",
-    price: "",
   });
   const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
   const [selectedCompany, setSelectedCompany] = useState("");
@@ -165,7 +164,7 @@ const Warehouse = () => {
   };
 
   const handleAddItem = async () => {
-    if (!newItem.name || !newItem.stock || !newItem.price) {
+    if (!newItem.name || !newItem.stock) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -175,8 +174,8 @@ const Warehouse = () => {
     }
 
     const quantity = parseInt(newItem.stock);
-    const unitPrice = parseFloat(newItem.price);
-    const totalCost = quantity * unitPrice;
+    const unitPrice = 0; // Price disabled
+    const totalCost = 0;
 
     // Insert or update product in current warehouse
     const { data: existingProducts, error: checkError } = await supabase
@@ -274,7 +273,7 @@ const Warehouse = () => {
       }
     }
 
-    setNewItem({ name: "", sku: "", stock: "", price: "" });
+    setNewItem({ name: "", sku: "", stock: "" });
     setShowForm(false);
     fetchProducts();
   };
@@ -777,18 +776,6 @@ const Warehouse = () => {
                     placeholder="e.g., CH-001"
                     value={newItem.sku}
                     onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="price">Unit Price ($) *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={newItem.price}
-                    onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
