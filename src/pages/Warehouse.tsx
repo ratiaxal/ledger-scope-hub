@@ -62,6 +62,11 @@ const Warehouse = () => {
   const [showReduceDialog, setShowReduceDialog] = useState(false);
   const [reduceProduct, setReduceProduct] = useState<Product | null>(null);
   const [reduceQuantity, setReduceQuantity] = useState("");
+  const [showSharedProductForm, setShowSharedProductForm] = useState(false);
+  const [sharedProduct, setSharedProduct] = useState({
+    name: "",
+    color: "",
+  });
   const holdIntervalRef = useRef<number | null>(null);
   const holdTimeoutRef = useRef<number | null>(null);
 
@@ -437,6 +442,85 @@ const Warehouse = () => {
     fetchProducts();
   };
 
+  const handleAddSharedProduct = async () => {
+    if (!sharedProduct.name.trim()) {
+      toast({
+        title: "შეცდომა",
+        description: "გთხოვთ შეიყვანოთ პროდუქტის სახელი",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedWarehouse) {
+      toast({
+        title: "შეცდომა",
+        description: "გთხოვთ აირჩიოთ საწყობი",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create product name with color if provided
+    const productName = sharedProduct.color.trim() 
+      ? `${sharedProduct.name.trim()} (${sharedProduct.color.trim()})`
+      : sharedProduct.name.trim();
+
+    // Check if product exists
+    const { data: existingProducts, error: checkError } = await supabase
+      .from("products")
+      .select("*")
+      .eq("warehouse_id", selectedWarehouse)
+      .eq("name", productName);
+
+    if (checkError) {
+      toast({
+        title: "შეცდომა",
+        description: checkError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (existingProducts && existingProducts.length > 0) {
+      toast({
+        title: "პროდუქტი უკვე არსებობს",
+        description: `"${productName}" უკვე დამატებულია საწყობში`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Insert new product with 0 stock and 0 price
+    const { error: productError } = await supabase
+      .from("products")
+      .insert([{
+        name: productName,
+        sku: null,
+        unit_price: 0,
+        current_stock: 0,
+        warehouse_id: selectedWarehouse,
+      }]);
+
+    if (productError) {
+      toast({
+        title: "შეცდომა",
+        description: productError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({ 
+      title: "პროდუქტი დამატებულია",
+      description: `"${productName}" წარმატებით დაემატა საწყობში`
+    });
+
+    setSharedProduct({ name: "", color: "" });
+    setShowSharedProductForm(false);
+    fetchProducts();
+  };
+
   const handleDeleteProduct = async (productId: string, productName: string) => {
     const { error } = await supabase
       .from("products")
@@ -713,12 +797,51 @@ const Warehouse = () => {
               <ShoppingCart className="h-4 w-4" />
               შეკვეთის შექმნა
             </Button>
+            <Button onClick={() => setShowSharedProductForm(!showSharedProductForm)} variant="secondary" className="gap-2">
+              <Plus className="h-4 w-4" />
+              პროდუქტის დამატება
+            </Button>
             <Button onClick={() => setShowForm(!showForm)} variant="outline" className="gap-2">
               <Plus className="h-4 w-4" />
               ნივთის დამატება
             </Button>
           </div>
         </div>
+
+        {showSharedProductForm && (
+          <Card>
+            <CardHeader>
+              <CardTitle>პროდუქტის დამატება</CardTitle>
+              <CardDescription>დაამატეთ ახალი პროდუქტი საწყობში სახელით და ფერით</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="shared-name">პროდუქტის სახელი *</Label>
+                  <Input
+                    id="shared-name"
+                    placeholder="მაგ: სკამი, მაგიდა"
+                    value={sharedProduct.name}
+                    onChange={(e) => setSharedProduct({ ...sharedProduct, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shared-color">ფერი (არასავალდებულო)</Label>
+                  <Input
+                    id="shared-color"
+                    placeholder="მაგ: თეთრი, შავი, ლურჯი"
+                    value={sharedProduct.color}
+                    onChange={(e) => setSharedProduct({ ...sharedProduct, color: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleAddSharedProduct} className="flex-1">დამატება</Button>
+                <Button variant="outline" onClick={() => setShowSharedProductForm(false)}>გაუქმება</Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-6 md:grid-cols-3">
           <Card>
