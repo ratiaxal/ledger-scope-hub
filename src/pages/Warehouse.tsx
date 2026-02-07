@@ -34,13 +34,6 @@ const Warehouse = () => {
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
   const [products, setProducts] = useState<Product[]>([]);
   
-  const [showForm, setShowForm] = useState(false);
-  const [newItem, setNewItem] = useState({
-    name: "",
-    sku: "",
-    stock: "",
-    price: "",
-  });
   const [showReduceDialog, setShowReduceDialog] = useState(false);
   const [reduceProduct, setReduceProduct] = useState<Product | null>(null);
   const [reduceQuantity, setReduceQuantity] = useState("");
@@ -132,121 +125,6 @@ const Warehouse = () => {
     } else {
       setProducts(data || []);
     }
-  };
-
-  const handleAddItem = async () => {
-    if (!newItem.name || !newItem.stock || !newItem.price) {
-      toast({
-        title: "Missing information",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const quantity = parseInt(newItem.stock);
-    const unitPrice = parseFloat(newItem.price);
-    const totalCost = quantity * unitPrice;
-
-    // Insert or update product in current warehouse
-    const { data: existingProducts, error: checkError } = await supabase
-      .from("products")
-      .select("*")
-      .eq("warehouse_id", selectedWarehouse)
-      .eq("name", newItem.name);
-
-    if (checkError) {
-      toast({
-        title: "Error checking existing products",
-        description: checkError.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (existingProducts && existingProducts.length > 0) {
-      // Product exists, update stock
-      const existingProduct = existingProducts[0];
-      const newStock = existingProduct.current_stock + quantity;
-      
-      const { error: updateError } = await supabase
-        .from("products")
-        .update({ current_stock: newStock })
-        .eq("id", existingProduct.id);
-
-      if (updateError) {
-        toast({
-          title: "Error updating product",
-          description: updateError.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Record inventory transaction
-      await supabase
-        .from("inventory_transactions")
-        .insert([{
-          product_id: existingProduct.id,
-          change_quantity: quantity,
-          reason: "restock",
-          comment: `საწყობის მარაგის დამატება`,
-          warehouse_id: selectedWarehouse,
-        }]);
-
-      toast({ 
-        title: "პროდუქტი განახლდა",
-        description: `${quantity} ერთეული დაემატა მარაგს`
-      });
-    } else {
-      // Insert new product
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .insert([{
-          name: newItem.name,
-          sku: newItem.sku || null,
-          unit_price: unitPrice,
-          current_stock: quantity,
-          warehouse_id: selectedWarehouse,
-        }])
-        .select()
-        .single();
-
-      if (productError) {
-        toast({
-          title: "Error adding product",
-          description: productError.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Record initial stock purchase as expense
-      const { error: financeError } = await supabase
-        .from("finance_entries")
-        .insert([{
-          type: "expense",
-          amount: totalCost,
-          comment: `საწყობის საწყისი მარაგი - ${newItem.name} (${quantity} ცალი × $${unitPrice})`,
-          company_id: null,
-          related_order_id: null,
-          warehouse_id: selectedWarehouse,
-        }]);
-
-      if (financeError) {
-        toast({
-          title: "Warning",
-          description: "Product added but finance entry failed: " + financeError.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({ title: "Product added and expense recorded" });
-      }
-    }
-
-    setNewItem({ name: "", sku: "", stock: "", price: "" });
-    setShowForm(false);
-    fetchProducts();
   };
 
   const handleUpdateStock = async (id: string, change: number) => {
@@ -563,10 +441,6 @@ const Warehouse = () => {
               <Plus className="h-4 w-4" />
               პროდუქტის დამატება
             </Button>
-            <Button onClick={() => setShowForm(!showForm)} variant="outline" className="gap-2">
-              <Plus className="h-4 w-4" />
-              ნივთის დამატება
-            </Button>
           </div>
         </div>
 
@@ -649,64 +523,6 @@ const Warehouse = () => {
           </Card>
         </div>
 
-        {showForm && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Add Inventory Item</CardTitle>
-              <CardDescription>Register a new product in the warehouse</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Product Name *</Label>
-                  <Input
-                    id="name"
-                    placeholder="e.g., Office Chairs"
-                    value={newItem.name}
-                    onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sku">SKU (Optional)</Label>
-                  <Input
-                    id="sku"
-                    placeholder="e.g., CH-001"
-                    value={newItem.sku}
-                    onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="price">Unit Price ($) *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={newItem.price}
-                    onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="stock">Initial Stock *</Label>
-                  <Input
-                    id="stock"
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={newItem.stock}
-                    onChange={(e) => setNewItem({ ...newItem, stock: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleAddItem} className="flex-1">Add Item</Button>
-                <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         <Card>
           <CardHeader>
             <CardTitle>Current Inventory</CardTitle>
@@ -718,7 +534,7 @@ const Warehouse = () => {
                 <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium mb-2">No products yet</h3>
                 <p className="text-muted-foreground mb-4">Get started by adding your first product</p>
-                <Button onClick={() => setShowForm(true)}>
+                <Button onClick={() => setShowSharedProductForm(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Product
                 </Button>
