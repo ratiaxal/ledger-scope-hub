@@ -48,6 +48,7 @@ const Warehouse = () => {
   const [sharedProduct, setSharedProduct] = useState({
     name: "",
     color: "",
+    quantity: "1",
   });
   const holdIntervalRef = useRef<number | null>(null);
   const holdTimeoutRef = useRef<number | null>(null);
@@ -455,14 +456,16 @@ const Warehouse = () => {
       return;
     }
 
-    // Insert new product with 0 stock and 0 price
+    const quantity = parseInt(sharedProduct.quantity) || 1;
+
+    // Insert new product with specified quantity
     const { error: productError } = await supabase
       .from("products")
       .insert([{
         name: productName,
         sku: null,
         unit_price: 0,
-        current_stock: 0,
+        current_stock: quantity,
         warehouse_id: selectedWarehouse,
       }]);
 
@@ -477,10 +480,10 @@ const Warehouse = () => {
 
     toast({ 
       title: "პროდუქტი დამატებულია",
-      description: `"${productName}" წარმატებით დაემატა საწყობში`
+      description: `"${productName}" (${quantity} ცალი) წარმატებით დაემატა საწყობში`
     });
 
-    setSharedProduct({ name: "", color: "" });
+    setSharedProduct({ name: "", color: "", quantity: "1" });
     setShowSharedProductForm(false);
     fetchProducts();
   };
@@ -574,7 +577,7 @@ const Warehouse = () => {
               <CardDescription>დაამატეთ ახალი პროდუქტი საწყობში სახელით და ფერით</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="shared-name">პროდუქტის სახელი *</Label>
                   <Input
@@ -591,6 +594,17 @@ const Warehouse = () => {
                     placeholder="მაგ: თეთრი, შავი, ლურჯი"
                     value={sharedProduct.color}
                     onChange={(e) => setSharedProduct({ ...sharedProduct, color: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shared-quantity">რაოდენობა *</Label>
+                  <Input
+                    id="shared-quantity"
+                    type="number"
+                    min="1"
+                    placeholder="1"
+                    value={sharedProduct.quantity}
+                    onChange={(e) => setSharedProduct({ ...sharedProduct, quantity: e.target.value })}
                   />
                 </div>
               </div>
