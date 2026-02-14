@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Plus, Search, Package, Calendar, Trash2, Check, DollarSign } from "lucide-react";
+import { Building2, Plus, Search, Package, Calendar, Trash2, Check, DollarSign, Pencil } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -89,6 +90,9 @@ const Orders = () => {
   } | null>(null);
   const [laterPaymentAmount, setLaterPaymentAmount] = useState("");
   const [laterPaymentMethod, setLaterPaymentMethod] = useState("");
+  const [showEditOrderDialog, setShowEditOrderDialog] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editOrder, setEditOrder] = useState({ total_amount: "", notes: "", payment_received_amount: "" });
 
   useEffect(() => {
     fetchProducts();
@@ -973,6 +977,49 @@ const Orders = () => {
     fetchOrders();
   };
 
+  const handleEditOrder = async (orderId: string) => {
+    const { data, error } = await supabase.from("orders").select("*").eq("id", orderId).single();
+    if (error || !data) {
+      toast({ title: "შეცდომა", description: error?.message, variant: "destructive" });
+      return;
+    }
+    setEditingOrderId(orderId);
+    setEditOrder({
+      total_amount: String(data.total_amount),
+      notes: data.notes || "",
+      payment_received_amount: String(data.payment_received_amount),
+    });
+    setShowEditOrderDialog(true);
+  };
+
+  const handleSaveEditOrder = async () => {
+    if (!editingOrderId) return;
+    const totalAmount = parseFloat(editOrder.total_amount);
+    const paymentReceived = parseFloat(editOrder.payment_received_amount) || 0;
+    if (isNaN(totalAmount)) {
+      toast({ title: "არასწორი თანხა", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        total_amount: totalAmount,
+        notes: editOrder.notes || null,
+        payment_received_amount: paymentReceived,
+        payment_status: paymentReceived >= totalAmount ? "paid" : paymentReceived > 0 ? "partially_paid" : "unpaid",
+        debt_flag: paymentReceived < totalAmount,
+      })
+      .eq("id", editingOrderId);
+    if (error) {
+      toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "შეკვეთა განახლდა" });
+      setShowEditOrderDialog(false);
+      setEditingOrderId(null);
+      fetchOrders();
+    }
+  };
+
   const filteredOrders = orders.filter((order) =>
     order.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.items.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1334,6 +1381,10 @@ const Orders = () => {
                         >
                           Cancel Order
                         </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleEditOrder(order.id)} className="gap-2">
+                          <Pencil className="h-4 w-4" />
+                          რედაქტირება
+                        </Button>
                         <Button
                           size="sm"
                           variant="destructive"
@@ -1486,6 +1537,10 @@ const Orders = () => {
                             className="gap-2"
                           >
                             პროდუქტის დაბრუნება
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleEditOrder(order.id)} className="gap-2">
+                            <Pencil className="h-4 w-4" />
+                            რედაქტირება
                           </Button>
                           <Button
                             size="sm"
@@ -1664,6 +1719,33 @@ const Orders = () => {
               გადახდის დადასტურება
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEditOrderDialog} onOpenChange={setShowEditOrderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>შეკვეთის რედაქტირება</DialogTitle>
+            <DialogDescription>შეცვალეთ შეკვეთის მონაცემები</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>სრული თანხა ($)</Label>
+              <Input type="number" step="0.01" value={editOrder.total_amount} onChange={(e) => setEditOrder({ ...editOrder, total_amount: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>გადახდილი თანხა ($)</Label>
+              <Input type="number" step="0.01" value={editOrder.payment_received_amount} onChange={(e) => setEditOrder({ ...editOrder, payment_received_amount: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>კომენტარი / შენიშვნა</Label>
+              <Textarea value={editOrder.notes} onChange={(e) => setEditOrder({ ...editOrder, notes: e.target.value })} />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSaveEditOrder} className="flex-1">შენახვა</Button>
+              <Button variant="outline" onClick={() => setShowEditOrderDialog(false)}>გაუქმება</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

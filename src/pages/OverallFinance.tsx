@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { TrendingUp, TrendingDown, DollarSign, Calendar, Building2, Trash2, ArrowDownToLine } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Calendar, Building2, Trash2, ArrowDownToLine, Pencil } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,6 +48,9 @@ const OverallFinance = () => {
     amount: "",
     note: "",
   });
+  const [showEditEntryDialog, setShowEditEntryDialog] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<FinanceEntry | null>(null);
+  const [editEntry, setEditEntry] = useState({ amount: "", type: "income" as "income" | "expense", comment: "" });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -156,6 +159,33 @@ const OverallFinance = () => {
       fetchData();
     }
     setShowDeleteDialog(false);
+  };
+
+  const handleEditEntry = (entry: FinanceEntry) => {
+    setEditingEntry(entry);
+    setEditEntry({ amount: String(entry.amount), type: entry.type, comment: entry.comment || "" });
+    setShowEditEntryDialog(true);
+  };
+
+  const handleSaveEditEntry = async () => {
+    if (!editingEntry || !editEntry.amount) return;
+    const amount = parseFloat(editEntry.amount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: "არასწორი თანხა", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase
+      .from("finance_entries")
+      .update({ amount, type: editEntry.type, comment: editEntry.comment || null })
+      .eq("id", editingEntry.id);
+    if (error) {
+      toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "ჩანაწერი განახლდა" });
+      setShowEditEntryDialog(false);
+      setEditingEntry(null);
+      fetchData();
+    }
   };
 
   const initiateDelete = (action: "selected" | "all") => {
@@ -851,12 +881,17 @@ const OverallFinance = () => {
                         <div className="text-sm text-muted-foreground mt-1 italic">"{entry.comment}"</div>
                       )}
                     </div>
-                    <div className={`text-xl font-bold ${
-                      entry.type === "income" ? "text-success" : 
-                      entry.related_order_id ? "text-amber-500" : 
-                      "text-destructive"
-                    }`}>
-                      {entry.type === "income" ? "+" : "-"}${entry.amount.toLocaleString()}
+                    <div className="flex items-center gap-2">
+                      <div className={`text-xl font-bold ${
+                        entry.type === "income" ? "text-success" : 
+                        entry.related_order_id ? "text-amber-500" : 
+                        "text-destructive"
+                      }`}>
+                        {entry.type === "income" ? "+" : "-"}${entry.amount.toLocaleString()}
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleEditEntry(entry)} className="text-muted-foreground hover:text-primary">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -865,6 +900,36 @@ const OverallFinance = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={showEditEntryDialog} onOpenChange={setShowEditEntryDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>ჩანაწერის რედაქტირება</DialogTitle>
+            <DialogDescription>შეცვალეთ ფინანსური ჩანაწერის მონაცემები</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>თანხა</Label>
+              <Input type="number" step="0.01" value={editEntry.amount} onChange={(e) => setEditEntry({ ...editEntry, amount: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>ტიპი</Label>
+              <div className="flex gap-4">
+                <Button type="button" variant={editEntry.type === "income" ? "default" : "outline"} onClick={() => setEditEntry({ ...editEntry, type: "income" })} className="flex-1">შემოსავალი</Button>
+                <Button type="button" variant={editEntry.type === "expense" ? "default" : "outline"} onClick={() => setEditEntry({ ...editEntry, type: "expense" })} className="flex-1">ხარჯი</Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>კომენტარი</Label>
+              <Textarea value={editEntry.comment} onChange={(e) => setEditEntry({ ...editEntry, comment: e.target.value })} />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSaveEditEntry} className="flex-1">შენახვა</Button>
+              <Button variant="outline" onClick={() => setShowEditEntryDialog(false)}>გაუქმება</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
