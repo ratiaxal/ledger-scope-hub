@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Plus, TrendingUp, TrendingDown, DollarSign, Package, Trash2 } from "lucide-react";
+import { Building2, Plus, TrendingUp, TrendingDown, DollarSign, Package, Trash2, Pencil } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,6 +41,9 @@ const WarehouseFinance = () => {
     type: "income" as "income" | "expense",
     comment: "",
   });
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<FinanceEntry | null>(null);
+  const [editEntry, setEditEntry] = useState({ amount: "", type: "income" as "income" | "expense", comment: "" });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -152,6 +156,33 @@ const WarehouseFinance = () => {
 
   const handleWarehouseChange = (newWarehouseId: string) => {
     navigate(`/warehouse-finance/${newWarehouseId}`);
+  };
+
+  const handleEditEntry = (entry: FinanceEntry) => {
+    setEditingEntry(entry);
+    setEditEntry({ amount: String(entry.amount), type: entry.type, comment: entry.comment || "" });
+    setShowEditDialog(true);
+  };
+
+  const handleSaveEditEntry = async () => {
+    if (!editingEntry || !editEntry.amount) return;
+    const amount = parseFloat(editEntry.amount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: "არასწორი თანხა", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase
+      .from("finance_entries")
+      .update({ amount, type: editEntry.type, comment: editEntry.comment || null })
+      .eq("id", editingEntry.id);
+    if (error) {
+      toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "ჩანაწერი განახლდა" });
+      setShowEditDialog(false);
+      setEditingEntry(null);
+      fetchData();
+    }
   };
 
   const handleDeleteEntry = async (entryId: string) => {
@@ -358,6 +389,9 @@ const WarehouseFinance = () => {
                       <div className={`text-xl font-bold ${entry.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
                         {entry.type === 'income' ? '+' : '-'}${parseFloat(entry.amount.toString()).toFixed(2)}
                       </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleEditEntry(entry)} className="text-muted-foreground hover:text-primary">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -373,6 +407,35 @@ const WarehouseFinance = () => {
             )}
           </CardContent>
         </Card>
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>ჩანაწერის რედაქტირება</DialogTitle>
+              <DialogDescription>შეცვალეთ ფინანსური ჩანაწერის მონაცემები</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>თანხა</Label>
+                <Input type="number" step="0.01" value={editEntry.amount} onChange={(e) => setEditEntry({ ...editEntry, amount: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>ტიპი</Label>
+                <div className="flex gap-4">
+                  <Button type="button" variant={editEntry.type === "income" ? "default" : "outline"} onClick={() => setEditEntry({ ...editEntry, type: "income" })} className="flex-1">შემოსავალი</Button>
+                  <Button type="button" variant={editEntry.type === "expense" ? "default" : "outline"} onClick={() => setEditEntry({ ...editEntry, type: "expense" })} className="flex-1">ხარჯი</Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>კომენტარი</Label>
+                <Textarea value={editEntry.comment} onChange={(e) => setEditEntry({ ...editEntry, comment: e.target.value })} />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleSaveEditEntry} className="flex-1">შენახვა</Button>
+                <Button variant="outline" onClick={() => setShowEditDialog(false)}>გაუქმება</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

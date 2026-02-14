@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Package, Plus, TrendingDown, Trash2, DollarSign } from "lucide-react";
+import { Package, Plus, TrendingDown, Trash2, DollarSign, Pencil } from "lucide-react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +45,9 @@ const Warehouse = () => {
   });
   const holdIntervalRef = useRef<number | null>(null);
   const holdTimeoutRef = useRef<number | null>(null);
+  const [showEditProductDialog, setShowEditProductDialog] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editProduct, setEditProduct] = useState({ name: "", unit_price: "", current_stock: "" });
 
   useEffect(() => {
     fetchWarehouses();
@@ -366,6 +369,30 @@ const Warehouse = () => {
     fetchProducts();
   };
 
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setEditProduct({ name: product.name, unit_price: String(product.unit_price), current_stock: String(product.current_stock) });
+    setShowEditProductDialog(true);
+  };
+
+  const handleSaveEditProduct = async () => {
+    if (!editingProduct || !editProduct.name.trim()) return;
+    const unitPrice = parseFloat(editProduct.unit_price) || 0;
+    const currentStock = parseInt(editProduct.current_stock) || 0;
+    const { error } = await supabase
+      .from("products")
+      .update({ name: editProduct.name.trim(), unit_price: unitPrice, current_stock: currentStock })
+      .eq("id", editingProduct.id);
+    if (error) {
+      toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "პროდუქტი განახლდა" });
+      setShowEditProductDialog(false);
+      setEditingProduct(null);
+      fetchProducts();
+    }
+  };
+
   const handleDeleteProduct = async (productId: string, productName: string) => {
     const { error } = await supabase
       .from("products")
@@ -606,6 +633,9 @@ const Warehouse = () => {
                           <TrendingDown className="h-4 w-4" />
                           შემცირება
                         </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)} className="gap-1">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -643,6 +673,33 @@ const Warehouse = () => {
           </CardContent>
         </Card>
 
+
+        <Dialog open={showEditProductDialog} onOpenChange={setShowEditProductDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>პროდუქტის რედაქტირება</DialogTitle>
+              <DialogDescription>შეცვალეთ პროდუქტის მონაცემები</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>სახელი</Label>
+                <Input value={editProduct.name} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>ერთეულის ფასი ($)</Label>
+                <Input type="number" step="0.01" value={editProduct.unit_price} onChange={(e) => setEditProduct({ ...editProduct, unit_price: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>მიმდინარე მარაგი</Label>
+                <Input type="number" value={editProduct.current_stock} onChange={(e) => setEditProduct({ ...editProduct, current_stock: e.target.value })} />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleSaveEditProduct} className="flex-1">შენახვა</Button>
+                <Button variant="outline" onClick={() => setShowEditProductDialog(false)}>გაუქმება</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={showReduceDialog} onOpenChange={setShowReduceDialog}>
           <DialogContent>
