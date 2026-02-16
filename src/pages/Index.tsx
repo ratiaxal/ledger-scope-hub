@@ -26,6 +26,7 @@ const Index = () => {
   const { toast } = useToast();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [newCompany, setNewCompany] = useState({
     name: "",
     registration_number: "",
@@ -107,6 +108,28 @@ const Index = () => {
     } else {
       toast({ title: `${companyName} deleted successfully` });
       fetchCompanies();
+    }
+  };
+
+  const handleResetAllData = async () => {
+    setResetting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-all-data');
+      if (error) throw error;
+
+      toast({
+        title: "სისტემა გასუფთავდა",
+        description: data.message,
+      });
+      fetchCompanies();
+    } catch (error) {
+      toast({
+        title: "შეცდომა",
+        description: error instanceof Error ? error.message : "Failed to reset data",
+        variant: "destructive",
+      });
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -196,6 +219,30 @@ const Index = () => {
                 </div>
               </DialogContent>
             </Dialog>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="gap-2" disabled={resetting}>
+                  <Trash2 className="h-4 w-4" />
+                  {resetting ? "იშლება..." : "ყველას წაშლა"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>ყველა მონაცემის წაშლა</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    დარწმუნებული ხართ? ეს წაშლის ყველა შეკვეთას, ფინანსურ ჩანაწერს და ინვენტარის ტრანზაქციას. 
+                    გაყიდული პროდუქტები ავტომატურად დაბრუნდება საწყობში თავდაპირველი სახელებით და რაოდენობებით.
+                    ეს მოქმედება შეუქცევადია.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>გაუქმება</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleResetAllData} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    დიახ, წაშალე ყველაფერი
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Button variant="outline" onClick={handleSignOut} className="gap-2">
               <LogOut className="h-4 w-4" />
               გასვლა
