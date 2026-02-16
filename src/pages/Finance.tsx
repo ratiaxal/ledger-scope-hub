@@ -306,16 +306,23 @@ const Finance = () => {
   };
 
   const handleDeleteEntries = async () => {
-    const idsToDelete = deleteAction === "all" 
-      ? entries.map(e => e.id)
-      : Array.from(selectedEntries);
-
-    if (idsToDelete.length === 0) return;
-
-    const { error } = await supabase
-      .from("finance_entries")
-      .delete()
-      .in("id", idsToDelete);
+    let error;
+    if (deleteAction === "all") {
+      // Delete all entries for this company without ID list to avoid URL length limits
+      const result = await supabase
+        .from("finance_entries")
+        .delete()
+        .eq("company_id", companyId);
+      error = result.error;
+    } else {
+      const idsToDelete = Array.from(selectedEntries);
+      if (idsToDelete.length === 0) return;
+      const result = await supabase
+        .from("finance_entries")
+        .delete()
+        .in("id", idsToDelete);
+      error = result.error;
+    }
 
     if (error) {
       toast({
@@ -326,7 +333,7 @@ const Finance = () => {
     } else {
       toast({
         title: "წარმატებით წაიშალა",
-        description: `${idsToDelete.length} ჩანაწერი წაიშალა`,
+        description: deleteAction === "all" ? "ყველა ჩანაწერი წაიშალა" : `${selectedEntries.size} ჩანაწერი წაიშალა`,
       });
       setSelectedEntries(new Set());
       setShowDeleteDialog(false);
