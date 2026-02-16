@@ -135,14 +135,22 @@ const OverallFinance = () => {
   };
 
   const handleDeleteEntries = async () => {
-    const idsToDelete = deleteAction === "all" 
-      ? entries.map(e => e.id) 
-      : Array.from(selectedEntries);
-
-    const { error } = await supabase
-      .from("finance_entries")
-      .delete()
-      .in("id", idsToDelete);
+    let error;
+    if (deleteAction === "all") {
+      // Delete all entries without ID list to avoid URL length limits
+      const result = await supabase
+        .from("finance_entries")
+        .delete()
+        .gte("created_at", "1970-01-01");
+      error = result.error;
+    } else {
+      const idsToDelete = Array.from(selectedEntries);
+      const result = await supabase
+        .from("finance_entries")
+        .delete()
+        .in("id", idsToDelete);
+      error = result.error;
+    }
 
     if (error) {
       toast({
@@ -153,7 +161,7 @@ const OverallFinance = () => {
     } else {
       toast({
         title: "წარმატება",
-        description: `წაიშალა ${idsToDelete.length} ჩანაწერი`,
+        description: deleteAction === "all" ? "ყველა ჩანაწერი წაიშალა" : `წაიშალა ${selectedEntries.size} ჩანაწერი`,
       });
       setSelectedEntries(new Set());
       fetchData();
