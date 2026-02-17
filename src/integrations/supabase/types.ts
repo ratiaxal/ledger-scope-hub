@@ -265,7 +265,6 @@ export type Database = {
           id: string
           name: string
           sku: string | null
-          unit_price: number
           updated_at: string
           warehouse_id: string | null
         }
@@ -275,7 +274,6 @@ export type Database = {
           id?: string
           name: string
           sku?: string | null
-          unit_price: number
           updated_at?: string
           warehouse_id?: string | null
         }
@@ -285,7 +283,6 @@ export type Database = {
           id?: string
           name?: string
           sku?: string | null
-          unit_price?: number
           updated_at?: string
           warehouse_id?: string | null
         }
