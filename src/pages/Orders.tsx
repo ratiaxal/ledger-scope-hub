@@ -16,7 +16,6 @@ interface Product {
   id: string;
   name: string;
   sku: string | null;
-  unit_price: number;
   current_stock: number;
 }
 
@@ -257,8 +256,8 @@ const Orders = () => {
         product_id: product.id,
         product_name: product.name,
         quantity: 1,
-        unit_price: product.unit_price,
-        line_total: product.unit_price,
+        unit_price: 0,
+        line_total: 0,
       });
     });
 
@@ -1185,7 +1184,7 @@ const Orders = () => {
                               <div className="font-medium truncate">{product.name}</div>
                               <div className="text-sm text-muted-foreground">
                                 {product.sku && `SKU: ${product.sku} • `}
-                                Stock: {product.current_stock} • ${product.unit_price.toFixed(2)}
+                                Stock: {product.current_stock}
                               </div>
                             </div>
                             {isAlreadyAdded && (

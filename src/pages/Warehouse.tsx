@@ -15,7 +15,6 @@ interface Product {
   id: string;
   name: string;
   sku: string | null;
-  unit_price: number;
   current_stock: number;
   created_at: string;
   updated_at: string;
@@ -47,7 +46,7 @@ const Warehouse = () => {
   const holdTimeoutRef = useRef<number | null>(null);
   const [showEditProductDialog, setShowEditProductDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [editProduct, setEditProduct] = useState({ name: "", unit_price: "", current_stock: "" });
+  const [editProduct, setEditProduct] = useState({ name: "", current_stock: "" });
 
   useEffect(() => {
     fetchWarehouses();
@@ -78,10 +77,8 @@ const Warehouse = () => {
   };
 
   const handleStartHold = (productId: string, delta: number) => {
-    // First click
     handleUpdateStock(productId, delta);
     
-    // Start continuous increment after delay
     holdTimeoutRef.current = window.setTimeout(() => {
       holdIntervalRef.current = window.setInterval(() => {
         handleUpdateStock(productId, delta);
@@ -103,7 +100,6 @@ const Warehouse = () => {
       });
     } else {
       setWarehouses(data || []);
-      // Auto-select first warehouse if none selected
       if (data && data.length > 0 && !selectedWarehouse) {
         setSelectedWarehouse(data[0].id);
       }
@@ -135,9 +131,7 @@ const Warehouse = () => {
     if (!product) return;
 
     const newStock = Math.max(0, product.current_stock + change);
-    const actualChange = newStock - product.current_stock;
 
-    // Update product stock
     const { error: stockError } = await supabase
       .from("products")
       .update({ current_stock: newStock })
@@ -150,50 +144,6 @@ const Warehouse = () => {
         variant: "destructive",
       });
       return;
-    }
-
-    const amount = Math.abs(actualChange) * product.unit_price;
-
-    if (actualChange > 0) {
-      // Stock increase - record as expense
-      const { error: financeError } = await supabase
-        .from("finance_entries")
-        .insert([{
-          type: "expense",
-          amount: amount,
-          comment: `საწყობის მარაგის დამატება - ${product.name} (+${actualChange} ცალი × $${product.unit_price})`,
-          company_id: null,
-          related_order_id: null,
-          warehouse_id: selectedWarehouse,
-        }]);
-
-      if (financeError) {
-        toast({
-          title: "Warning",
-          description: "Stock updated but finance entry failed: " + financeError.message,
-          variant: "destructive",
-        });
-      }
-    } else if (actualChange < 0) {
-      // Stock decrease - deduct from finances (income to offset previous expense)
-      const { error: financeError } = await supabase
-        .from("finance_entries")
-        .insert([{
-          type: "income",
-          amount: amount,
-          comment: `საწყობის მარაგის შემცირება - ${product.name} (${actualChange} ცალი × $${product.unit_price})`,
-          company_id: null,
-          related_order_id: null,
-          warehouse_id: selectedWarehouse,
-        }]);
-
-      if (financeError) {
-        toast({
-          title: "Warning",
-          description: "Stock updated but finance entry failed: " + financeError.message,
-          variant: "destructive",
-        });
-      }
     }
 
     fetchProducts();
@@ -229,9 +179,7 @@ const Warehouse = () => {
     }
 
     const newStock = reduceProduct.current_stock - quantity;
-    const deductedValue = quantity * reduceProduct.unit_price;
 
-    // Update product stock
     const { error: stockError } = await supabase
       .from("products")
       .update({ current_stock: newStock })
@@ -257,29 +205,9 @@ const Warehouse = () => {
         warehouse_id: selectedWarehouse,
       }]);
 
-    // Deduct value from finances (record as income to offset the original expense)
-    const { error: financeError } = await supabase
-      .from("finance_entries")
-      .insert([{
-        type: "income",
-        amount: deductedValue,
-        comment: `პროდუქტის შემცირება - ${reduceProduct.name} (-${quantity} ცალი × $${reduceProduct.unit_price}) - დაბრუნება/გაფუჭება`,
-        company_id: null,
-        related_order_id: null,
-        warehouse_id: selectedWarehouse,
-      }]);
-
-    if (financeError) {
-      toast({
-        title: "გაფრთხილება",
-        description: "მარაგი განახლდა, მაგრამ ფინანსური ჩანაწერი ვერ შეიქმნა: " + financeError.message,
-        variant: "destructive",
-      });
-    }
-
     toast({
       title: "მარაგი შემცირდა",
-      description: `${quantity} ერთეული ამოღებულია და $${deductedValue.toFixed(2)} გამოიქვითა ფინანსებიდან`,
+      description: `${quantity} ერთეული ამოღებულია`,
     });
 
     setShowReduceDialog(false);
@@ -307,12 +235,10 @@ const Warehouse = () => {
       return;
     }
 
-    // Create product name with color if provided
     const productName = sharedProduct.color.trim() 
       ? `${sharedProduct.name.trim()} (${sharedProduct.color.trim()})`
       : sharedProduct.name.trim();
 
-    // Check if product exists
     const { data: existingProducts, error: checkError } = await supabase
       .from("products")
       .select("*")
@@ -339,13 +265,11 @@ const Warehouse = () => {
 
     const quantity = parseInt(sharedProduct.quantity) || 1;
 
-    // Insert new product with specified quantity
     const { error: productError } = await supabase
       .from("products")
       .insert([{
         name: productName,
         sku: null,
-        unit_price: 0,
         current_stock: quantity,
         warehouse_id: selectedWarehouse,
       }]);
@@ -371,17 +295,16 @@ const Warehouse = () => {
 
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
-    setEditProduct({ name: product.name, unit_price: String(product.unit_price), current_stock: String(product.current_stock) });
+    setEditProduct({ name: product.name, current_stock: String(product.current_stock) });
     setShowEditProductDialog(true);
   };
 
   const handleSaveEditProduct = async () => {
     if (!editingProduct || !editProduct.name.trim()) return;
-    const unitPrice = parseFloat(editProduct.unit_price) || 0;
     const currentStock = parseInt(editProduct.current_stock) || 0;
     const { error } = await supabase
       .from("products")
-      .update({ name: editProduct.name.trim(), unit_price: unitPrice, current_stock: currentStock })
+      .update({ name: editProduct.name.trim(), current_stock: currentStock })
       .eq("id", editingProduct.id);
     if (error) {
       toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
@@ -415,7 +338,6 @@ const Warehouse = () => {
   };
 
   const totalItems = products.reduce((acc, item) => acc + item.current_stock, 0);
-  const totalWarehouseValue = products.reduce((acc, item) => acc + (item.current_stock * item.unit_price), 0);
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -517,7 +439,7 @@ const Warehouse = () => {
           </Card>
         )}
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">სულ ერთეული</CardTitle>
@@ -534,18 +456,6 @@ const Warehouse = () => {
             <CardContent>
               <div className="text-3xl font-bold">{products.length}</div>
               <p className="text-xs text-muted-foreground mt-1">Unique products</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-primary" />
-                საწყობის სრული ღირებულება
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">${totalWarehouseValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              <p className="text-xs text-muted-foreground mt-1">მიმდინარე მარაგის ხარჯი</p>
             </CardContent>
           </Card>
         </div>
@@ -582,9 +492,6 @@ const Warehouse = () => {
                             {product.sku}
                           </span>
                         )}
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        Unit Price: ${product.unit_price.toFixed(2)}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         Last updated: {new Date(product.updated_at).toLocaleDateString()}
@@ -686,10 +593,6 @@ const Warehouse = () => {
                 <Input value={editProduct.name} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>ერთეულის ფასი ($)</Label>
-                <Input type="number" step="0.01" value={editProduct.unit_price} onChange={(e) => setEditProduct({ ...editProduct, unit_price: e.target.value })} />
-              </div>
-              <div className="space-y-2">
                 <Label>მიმდინარე მარაგი</Label>
                 <Input type="number" value={editProduct.current_stock} onChange={(e) => setEditProduct({ ...editProduct, current_stock: e.target.value })} />
               </div>
@@ -714,9 +617,6 @@ const Warehouse = () => {
                     <div className="mt-1 text-sm">
                       მიმდინარე მარაგი: <span className="font-bold">{reduceProduct.current_stock}</span> ერთეული
                     </div>
-                    <div className="text-sm">
-                      ერთეულის ფასი: <span className="font-bold">${reduceProduct.unit_price.toFixed(2)}</span>
-                    </div>
                   </>
                 )}
               </DialogDescription>
@@ -734,14 +634,6 @@ const Warehouse = () => {
                   placeholder="შეიყვანეთ რაოდენობა"
                 />
               </div>
-              {reduceQuantity && reduceProduct && (
-                <div className="p-3 bg-muted rounded-lg">
-                  <div className="text-sm text-muted-foreground">გამოქვითული ღირებულება</div>
-                  <div className="text-2xl font-bold text-primary">
-                    ${(parseInt(reduceQuantity) * reduceProduct.unit_price).toFixed(2)}
-                  </div>
-                </div>
-              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => {

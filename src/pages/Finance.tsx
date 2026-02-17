@@ -42,7 +42,6 @@ interface ProductPurchase {
   product_id: string;
   product_name: string;
   total_quantity: number;
-  unit_price: number;
   total_amount: number;
 }
 
@@ -229,7 +228,6 @@ const Finance = () => {
           product_id: productId,
           product_name: productName,
           total_quantity: 0,
-          unit_price: line.unit_price,
           total_amount: 0,
         });
       }
@@ -721,7 +719,6 @@ const Finance = () => {
                           <h3 className="font-semibold text-lg">{product.product_name}</h3>
                           <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                             <span>რაოდენობა: <span className="font-bold text-foreground">{product.total_quantity.toLocaleString()} ლიტრი</span></span>
-                            <span>ფასი: <span className="font-bold text-foreground">${product.unit_price.toFixed(2)}</span></span>
                           </div>
                         </div>
                         <div className="text-right">
