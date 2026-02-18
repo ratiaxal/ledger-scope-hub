@@ -476,9 +476,41 @@ const Orders = () => {
     }
 
     try {
-      // Delete related records first
-      
-      // 1. Delete order lines
+      // 1. Fetch the order status and its lines before deleting
+      const { data: orderData, error: orderFetchError } = await supabase
+        .from("orders")
+        .select("status")
+        .eq("id", orderId)
+        .single();
+
+      if (orderFetchError) throw orderFetchError;
+
+      const { data: orderLinesData, error: linesFetchError } = await supabase
+        .from("order_lines")
+        .select("product_id, quantity")
+        .eq("order_id", orderId);
+
+      if (linesFetchError) throw linesFetchError;
+
+      // 2. Restore stock for completed orders (stock was deducted when order was completed)
+      if (orderData?.status === "completed" && orderLinesData && orderLinesData.length > 0) {
+        for (const line of orderLinesData) {
+          const { data: productData } = await supabase
+            .from("products")
+            .select("current_stock")
+            .eq("id", line.product_id)
+            .single();
+
+          if (productData) {
+            await supabase
+              .from("products")
+              .update({ current_stock: productData.current_stock + line.quantity })
+              .eq("id", line.product_id);
+          }
+        }
+      }
+
+      // 3. Delete order lines
       const { error: linesError } = await supabase
         .from("order_lines")
         .delete()
@@ -486,7 +518,7 @@ const Orders = () => {
       
       if (linesError) throw linesError;
 
-      // 2. Delete related finance entries
+      // 4. Delete related finance entries
       const { error: financeError } = await supabase
         .from("finance_entries")
         .delete()
@@ -494,7 +526,7 @@ const Orders = () => {
       
       if (financeError) throw financeError;
 
-      // 3. Delete related inventory transactions
+      // 5. Delete related inventory transactions
       const { error: inventoryError } = await supabase
         .from("inventory_transactions")
         .delete()
@@ -502,7 +534,7 @@ const Orders = () => {
       
       if (inventoryError) throw inventoryError;
 
-      // 4. Finally delete the order
+      // 6. Finally delete the order
       const { error: orderError } = await supabase
         .from("orders")
         .delete()
@@ -510,7 +542,7 @@ const Orders = () => {
 
       if (orderError) throw orderError;
 
-      toast({ title: "Order deleted successfully" });
+      toast({ title: "შეკვეთა წაიშალა და მარაგი აღდგა" });
       fetchOrders();
     } catch (error) {
       toast({
