@@ -1449,11 +1449,11 @@ const Orders = () => {
                 filteredOrders.filter(order => order.status === "canceled").map((order) => (
                   <div
                     key={order.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors opacity-60"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors opacity-60 gap-3"
                   >
                     <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-primary">{order.id}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold text-primary text-sm">{order.id}</span>
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
                           Canceled
                         </span>
@@ -1470,18 +1470,16 @@ const Orders = () => {
                         {order.date}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between sm:justify-end gap-3">
                       <div className="text-right">
-                        <div className="text-2xl font-bold">${order.total.toLocaleString()}</div>
+                        <div className="text-xl sm:text-2xl font-bold">${order.total.toLocaleString()}</div>
                       </div>
                       <Button
                         size="sm"
                         variant="destructive"
                         onClick={() => handleDeleteOrder(order.id)}
-                        className="gap-2"
                       >
                         <Trash2 className="h-4 w-4" />
-                        Delete
                       </Button>
                     </div>
                   </div>
