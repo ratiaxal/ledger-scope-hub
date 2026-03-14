@@ -251,7 +251,7 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
           {/* Overall Financials Card */}
           <Card className="bg-primary/5 border-primary/20">
             <CardHeader>
