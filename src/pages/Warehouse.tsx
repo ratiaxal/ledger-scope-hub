@@ -482,7 +482,7 @@ const Warehouse = () => {
                 {products.map((product) => (
                   <div
                     key={product.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -498,14 +498,14 @@ const Warehouse = () => {
                         Last updated: {new Date(product.updated_at).toLocaleDateString()}
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
                       <div className="text-center">
                         <div className="text-2xl font-bold">
                           {product.current_stock}
                         </div>
                         <div className="text-xs text-muted-foreground">units</div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-1 sm:gap-2">
                         <Button
                           variant="outline"
                           size="sm"
@@ -539,7 +539,7 @@ const Warehouse = () => {
                           className="gap-1"
                         >
                           <TrendingDown className="h-4 w-4" />
-                          შემცირება
+                          <span className="hidden sm:inline">შემცირება</span>
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)} className="gap-1">
                           <Pencil className="h-4 w-4" />
