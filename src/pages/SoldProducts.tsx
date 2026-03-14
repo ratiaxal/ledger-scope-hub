@@ -287,23 +287,23 @@ const SoldProducts = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-3 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground mb-2 inline-block">
               ← უკან მთავარზე
             </Link>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Package className="h-8 w-8 text-primary" />
+            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+              <Package className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
               გაყიდული პროდუქტების მიმოხილვა
             </h1>
-            <p className="text-muted-foreground">თვალი ადევნეთ გაყიდვებს, დაბრუნებებს და შემოსავალს ყველა პროდუქტზე</p>
+            <p className="text-muted-foreground text-sm">თვალი ადევნეთ გაყიდვებს, დაბრუნებებს და შემოსავალს ყველა პროდუქტზე</p>
           </div>
         </div>
 
         {/* Overall Summary Cards */}
-        <div className="grid gap-6 md:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">სულ გაყიდული ერთეული</CardTitle>
