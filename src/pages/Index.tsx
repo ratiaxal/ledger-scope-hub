@@ -151,20 +151,20 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-3 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold flex items-center gap-2">
-              <Building2 className="h-10 w-10 text-primary" />
+            <h1 className="text-2xl sm:text-4xl font-bold flex items-center gap-2">
+              <Building2 className="h-7 w-7 sm:h-10 sm:w-10 text-primary" />
               ბიზნეს მენეჯერი
             </h1>
-            <p className="text-muted-foreground mt-2">მართეთ თქვენი კომპანიები, ფინანსები, შეკვეთები და ინვენტარი</p>
+            <p className="text-muted-foreground mt-2 text-sm sm:text-base">მართეთ თქვენი კომპანიები, ფინანსები, შეკვეთები და ინვენტარი</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
               <DialogTrigger asChild>
-                <Button className="gap-2">
+                <Button className="gap-2" size="sm">
                   <Plus className="h-4 w-4" />
                   კომპანიის დამატება
                 </Button>
@@ -221,9 +221,10 @@ const Index = () => {
             </Dialog>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="gap-2" disabled={resetting}>
+                <Button variant="destructive" className="gap-2" size="sm" disabled={resetting}>
                   <Trash2 className="h-4 w-4" />
-                  {resetting ? "იშლება..." : "ყველას წაშლა"}
+                  <span className="hidden sm:inline">{resetting ? "იშლება..." : "ყველას წაშლა"}</span>
+                  <span className="sm:hidden">{resetting ? "..." : "წაშლა"}</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -243,14 +244,14 @@ const Index = () => {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <Button variant="outline" onClick={handleSignOut} className="gap-2">
+            <Button variant="outline" onClick={handleSignOut} className="gap-2" size="sm">
               <LogOut className="h-4 w-4" />
               გასვლა
             </Button>
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
           {/* Overall Financials Card */}
           <Card className="bg-primary/5 border-primary/20">
             <CardHeader>

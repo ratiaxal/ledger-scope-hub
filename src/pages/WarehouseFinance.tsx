@@ -217,25 +217,25 @@ const WarehouseFinance = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-3 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4">
           <div className="flex-1">
             <Link to="/warehouse" className="text-sm text-muted-foreground hover:text-foreground mb-2 inline-block">
               ← უკან საწყობზე
             </Link>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div>
-                <h1 className="text-3xl font-bold flex items-center gap-2">
-                  <DollarSign className="h-8 w-8 text-primary" />
+                <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+                  <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                   {warehouse?.name} - ფინანსები
                 </h1>
-                <p className="text-muted-foreground">Track finances for this warehouse</p>
+                <p className="text-muted-foreground text-sm">Track finances for this warehouse</p>
               </div>
-              <div className="ml-8">
+              <div className="sm:ml-4">
                 <Label className="text-sm text-muted-foreground mb-2">Switch Warehouse</Label>
                 <Select value={warehouseId} onValueChange={handleWarehouseChange}>
-                  <SelectTrigger className="w-[250px]">
+                  <SelectTrigger className="w-full sm:w-[250px]">
                     <SelectValue placeholder="Choose warehouse" />
                   </SelectTrigger>
                   <SelectContent>
@@ -249,7 +249,7 @@ const WarehouseFinance = () => {
               </div>
             </div>
           </div>
-          <Button onClick={() => setShowForm(!showForm)} variant="outline" className="gap-2">
+          <Button onClick={() => setShowForm(!showForm)} variant="outline" className="gap-2 self-start" size="sm">
             <Plus className="h-4 w-4" />
             ჩანაწერის დამატება
           </Button>
@@ -365,12 +365,12 @@ const WarehouseFinance = () => {
               </div>
             ) : (
               <div className="space-y-2">
-                {entries.map((entry) => (
+                 {entries.map((entry) => (
                   <div
                     key={entry.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-2"
                   >
-                    <div className="flex items-center gap-4 flex-1">
+                    <div className="flex items-center gap-3 flex-1">
                       <div className={`p-2 rounded-full ${entry.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
                         {entry.type === 'income' ? (
                           <TrendingUp className="h-4 w-4 text-green-600" />
@@ -378,28 +378,30 @@ const WarehouseFinance = () => {
                           <TrendingDown className="h-4 w-4 text-red-600" />
                         )}
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium">{entry.comment || 'No comment'}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{entry.comment || 'No comment'}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(entry.created_at).toLocaleDateString()} {new Date(entry.created_at).toLocaleTimeString()}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className={`text-xl font-bold ${entry.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                    <div className="flex items-center justify-between sm:justify-end gap-3">
+                      <div className={`text-lg sm:text-xl font-bold ${entry.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
                         {entry.type === 'income' ? '+' : '-'}${parseFloat(entry.amount.toString()).toFixed(2)}
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => handleEditEntry(entry)} className="text-muted-foreground hover:text-primary">
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteEntry(entry.id)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditEntry(entry)} className="text-muted-foreground hover:text-primary">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteEntry(entry.id)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}

@@ -1058,18 +1058,18 @@ const Orders = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-3 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground mb-2 inline-block">
               ← უკან მთავარზე
             </Link>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Package className="h-8 w-8 text-primary" />
+            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+              <Package className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
               შეკვეთების მართვა
             </h1>
-            <p className="text-muted-foreground">Company ID: {companyId}</p>
+            <p className="text-muted-foreground text-sm">Company ID: {companyId}</p>
           </div>
           <div className="flex gap-2">
             <Button 
@@ -1078,10 +1078,11 @@ const Orders = () => {
               onClick={handleClearAllOrders}
               disabled={clearing}
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {clearing ? "იშლება..." : "ყველა შეკვეთის გასუფთავება"}
+              <Trash2 className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">{clearing ? "იშლება..." : "ყველა შეკვეთის გასუფთავება"}</span>
+              <span className="sm:hidden">{clearing ? "..." : "გასუფთავება"}</span>
             </Button>
-            <Button onClick={() => setShowForm(!showForm)} className="gap-2">
+            <Button onClick={() => setShowForm(!showForm)} className="gap-2" size="sm">
               <Plus className="h-4 w-4" />
               ახალი შეკვეთა
             </Button>
@@ -1370,11 +1371,11 @@ const Orders = () => {
                 filteredOrders.filter(order => order.status === "open").map((order) => (
                   <div
                     key={order.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
                   >
                     <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-primary">{order.id}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold text-primary text-sm">{order.id}</span>
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
                           Processing
                         </span>
@@ -1391,39 +1392,36 @@ const Orders = () => {
                         {order.date}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between sm:justify-end gap-3">
                       <div className="text-right">
-                        <div className="text-2xl font-bold">${order.total.toLocaleString()}</div>
+                        <div className="text-xl sm:text-2xl font-bold">${order.total.toLocaleString()}</div>
                       </div>
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-wrap gap-1 sm:flex-col sm:gap-2">
                         <Button
                           size="sm"
                           onClick={() => handleInitiateOrderCompletion(order.id)}
-                          className="gap-2"
+                          className="gap-1"
                         >
                           <Check className="h-4 w-4" />
-                          Mark Complete
+                          <span className="hidden sm:inline">Mark Complete</span>
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleUpdateOrderStatus(order.id, "canceled")}
-                          className="gap-2"
                         >
-                          Cancel Order
+                          <span className="hidden sm:inline">Cancel Order</span>
+                          <span className="sm:hidden">Cancel</span>
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleEditOrder(order.id)} className="gap-2">
+                        <Button size="sm" variant="outline" onClick={() => handleEditOrder(order.id)}>
                           <Pencil className="h-4 w-4" />
-                          რედაქტირება
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
                           onClick={() => handleDeleteOrder(order.id)}
-                          className="gap-2"
                         >
                           <Trash2 className="h-4 w-4" />
-                          Delete
                         </Button>
                       </div>
                     </div>
@@ -1451,11 +1449,11 @@ const Orders = () => {
                 filteredOrders.filter(order => order.status === "canceled").map((order) => (
                   <div
                     key={order.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors opacity-60"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors opacity-60 gap-3"
                   >
                     <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-primary">{order.id}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold text-primary text-sm">{order.id}</span>
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
                           Canceled
                         </span>
@@ -1472,18 +1470,16 @@ const Orders = () => {
                         {order.date}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between sm:justify-end gap-3">
                       <div className="text-right">
-                        <div className="text-2xl font-bold">${order.total.toLocaleString()}</div>
+                        <div className="text-xl sm:text-2xl font-bold">${order.total.toLocaleString()}</div>
                       </div>
                       <Button
                         size="sm"
                         variant="destructive"
                         onClick={() => handleDeleteOrder(order.id)}
-                        className="gap-2"
                       >
                         <Trash2 className="h-4 w-4" />
-                        Delete
                       </Button>
                     </div>
                   </div>
@@ -1514,11 +1510,11 @@ const Orders = () => {
                   return (
                     <div
                       key={order.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
                     >
                       <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-3">
-                          <span className="font-mono font-bold text-primary">{order.id}</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-bold text-primary text-sm">{order.id}</span>
                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
                             დასრულებული
                           </span>
@@ -1540,47 +1536,44 @@ const Orders = () => {
                           {order.date}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-between sm:justify-end gap-3">
                         <div className="text-right">
-                          <div className="text-2xl font-bold">${order.total.toLocaleString()}</div>
+                          <div className="text-xl sm:text-2xl font-bold">${order.total.toLocaleString()}</div>
                           {isUnpaid && (
                             <div className="text-sm text-muted-foreground">
                               გადახდილი: ${(order.paymentReceived || 0).toFixed(2)}
                             </div>
                           )}
                         </div>
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-wrap gap-1 sm:flex-col sm:gap-2">
                           {isUnpaid && (
                             <Button
                               size="sm"
                               variant="default"
                               onClick={() => handleInitiateLaterPayment(order.id)}
-                              className="gap-2"
+                              className="gap-1"
                             >
                               <DollarSign className="h-4 w-4" />
-                              გადახდის რეგისტრაცია
+                              <span className="hidden sm:inline">გადახდა</span>
                             </Button>
                           )}
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleInitiateReturn(order.id)}
-                            className="gap-2"
                           >
-                            პროდუქტის დაბრუნება
+                            <span className="hidden sm:inline">დაბრუნება</span>
+                            <span className="sm:hidden text-xs">↩</span>
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleEditOrder(order.id)} className="gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleEditOrder(order.id)}>
                             <Pencil className="h-4 w-4" />
-                            რედაქტირება
                           </Button>
                           <Button
                             size="sm"
                             variant="destructive"
                             onClick={() => handleDeleteOrder(order.id)}
-                            className="gap-2"
                           >
                             <Trash2 className="h-4 w-4" />
-                            წაშლა
                           </Button>
                         </div>
                       </div>
