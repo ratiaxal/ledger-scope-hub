@@ -365,12 +365,12 @@ const WarehouseFinance = () => {
               </div>
             ) : (
               <div className="space-y-2">
-                {entries.map((entry) => (
+                 {entries.map((entry) => (
                   <div
                     key={entry.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-2"
                   >
-                    <div className="flex items-center gap-4 flex-1">
+                    <div className="flex items-center gap-3 flex-1">
                       <div className={`p-2 rounded-full ${entry.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
                         {entry.type === 'income' ? (
                           <TrendingUp className="h-4 w-4 text-green-600" />
@@ -378,28 +378,30 @@ const WarehouseFinance = () => {
                           <TrendingDown className="h-4 w-4 text-red-600" />
                         )}
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium">{entry.comment || 'No comment'}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{entry.comment || 'No comment'}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(entry.created_at).toLocaleDateString()} {new Date(entry.created_at).toLocaleTimeString()}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className={`text-xl font-bold ${entry.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                    <div className="flex items-center justify-between sm:justify-end gap-3">
+                      <div className={`text-lg sm:text-xl font-bold ${entry.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
                         {entry.type === 'income' ? '+' : '-'}${parseFloat(entry.amount.toString()).toFixed(2)}
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => handleEditEntry(entry)} className="text-muted-foreground hover:text-primary">
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteEntry(entry.id)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditEntry(entry)} className="text-muted-foreground hover:text-primary">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteEntry(entry.id)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
