@@ -347,7 +347,7 @@ const AllOrders = () => {
                 openOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
                   >
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center gap-3">
