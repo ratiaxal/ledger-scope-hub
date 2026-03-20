@@ -1785,7 +1785,30 @@ const Orders = () => {
             <DialogTitle>შეკვეთის რედაქტირება</DialogTitle>
             <DialogDescription>შეცვალეთ შეკვეთის მონაცემები</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 mt-4">
+          <div className="space-y-4 mt-4 max-h-[70vh] overflow-y-auto">
+            {editOrderLines.length > 0 && (
+              <div className="space-y-2">
+                <Label>პროდუქტები და რაოდენობა</Label>
+                <div className="space-y-2 border rounded-md p-3">
+                  {editOrderLines.map((line, idx) => (
+                    <div key={line.id} className="flex items-center justify-between gap-2">
+                      <span className="text-sm flex-1 truncate">{line.product_name}</span>
+                      <Input
+                        type="number"
+                        min="1"
+                        className="w-20"
+                        value={line.quantity}
+                        onChange={(e) => {
+                          const newLines = [...editOrderLines];
+                          newLines[idx] = { ...newLines[idx], quantity: parseInt(e.target.value) || 1 };
+                          setEditOrderLines(newLines);
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>სრული თანხა ($)</Label>
               <Input type="number" step="0.01" value={editOrder.total_amount} onChange={(e) => setEditOrder({ ...editOrder, total_amount: e.target.value })} />
