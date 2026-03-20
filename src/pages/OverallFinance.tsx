@@ -248,9 +248,12 @@ const OverallFinance = () => {
     }
   };
 
-  const balance = entries.reduce((acc, entry) => {
-    return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
-  }, 0);
+  // Balance excludes debt-related entries (liabilities tracked separately)
+  const balance = entries
+    .filter(e => !e.related_order_id)
+    .reduce((acc, entry) => {
+      return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
+    }, 0);
 
   const totalIncome = entries
     .filter(e => e.type === "income")
@@ -284,7 +287,11 @@ const OverallFinance = () => {
     .reduce((acc, e) => acc + e.amount, 0);
 
   const monthlyExpense = monthlyEntries
-    .filter(e => e.type === "expense")
+    .filter(e => e.type === "expense" && !e.related_order_id)
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const monthlyDebt = monthlyEntries
+    .filter(e => e.type === "expense" && e.related_order_id)
     .reduce((acc, e) => acc + e.amount, 0);
 
   const monthlyBalance = monthlyIncome - monthlyExpense;
@@ -304,7 +311,7 @@ const OverallFinance = () => {
     .reduce((acc, e) => acc + e.amount, 0);
 
   const previousMonthExpense = previousMonthEntries
-    .filter(e => e.type === "expense")
+    .filter(e => e.type === "expense" && !e.related_order_id)
     .reduce((acc, e) => acc + e.amount, 0);
 
   const previousMonthBalance = previousMonthIncome - previousMonthExpense;
@@ -330,7 +337,11 @@ const OverallFinance = () => {
     .reduce((acc, e) => acc + e.amount, 0);
 
   const yearlyExpense = yearlyEntries
-    .filter(e => e.type === "expense")
+    .filter(e => e.type === "expense" && !e.related_order_id)
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const yearlyDebt = yearlyEntries
+    .filter(e => e.type === "expense" && e.related_order_id)
     .reduce((acc, e) => acc + e.amount, 0);
 
   const yearlyBalance = yearlyIncome - yearlyExpense;
