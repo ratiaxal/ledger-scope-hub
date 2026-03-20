@@ -337,7 +337,11 @@ const OverallFinance = () => {
     .reduce((acc, e) => acc + e.amount, 0);
 
   const yearlyExpense = yearlyEntries
-    .filter(e => e.type === "expense")
+    .filter(e => e.type === "expense" && !e.related_order_id)
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const yearlyDebt = yearlyEntries
+    .filter(e => e.type === "expense" && e.related_order_id)
     .reduce((acc, e) => acc + e.amount, 0);
 
   const yearlyBalance = yearlyIncome - yearlyExpense;
