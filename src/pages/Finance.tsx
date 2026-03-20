@@ -240,11 +240,13 @@ const Finance = () => {
     setProductPurchases(Array.from(productMap.values()).sort((a, b) => b.total_quantity - a.total_quantity));
   };
 
-  const balance = entries.reduce((acc, entry) => {
+  // Balance excludes debt-related entries
+  const nonDebtEntries = entries.filter(e => !e.related_order_id);
+  const balance = nonDebtEntries.reduce((acc, entry) => {
     return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
   }, 0);
 
-  // Calculate debt from order-related entries
+  // Debt tracked separately from balance
   const debtEntries = entries.filter(e => e.related_order_id);
   const totalDebt = debtEntries.reduce((acc, entry) => {
     return entry.type === "expense" ? acc + entry.amount : acc - entry.amount;
