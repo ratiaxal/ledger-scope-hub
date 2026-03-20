@@ -92,6 +92,7 @@ const Orders = () => {
   const [showEditOrderDialog, setShowEditOrderDialog] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState({ total_amount: "", notes: "", payment_received_amount: "" });
+  const [editOrderLines, setEditOrderLines] = useState<{ id: string; product_name: string; quantity: number; original_quantity: number }[]>([]);
 
   useEffect(() => {
     fetchProducts();
@@ -1014,12 +1015,25 @@ const Orders = () => {
       toast({ title: "შეცდომა", description: error?.message, variant: "destructive" });
       return;
     }
+    const { data: linesData } = await supabase
+      .from("order_lines")
+      .select("id, quantity, products (name)")
+      .eq("order_id", orderId);
+
     setEditingOrderId(orderId);
     setEditOrder({
       total_amount: String(data.total_amount),
       notes: data.notes || "",
       payment_received_amount: String(data.payment_received_amount),
     });
+    setEditOrderLines(
+      (linesData || []).map((line: any) => ({
+        id: line.id,
+        product_name: line.products?.name || "Unknown",
+        quantity: line.quantity,
+        original_quantity: line.quantity,
+      }))
+    );
     setShowEditOrderDialog(true);
   };
 
@@ -1031,23 +1045,42 @@ const Orders = () => {
       toast({ title: "არასწორი თანხა", variant: "destructive" });
       return;
     }
-    const { error } = await supabase
-      .from("orders")
-      .update({
-        total_amount: totalAmount,
-        notes: editOrder.notes || null,
-        payment_received_amount: paymentReceived,
-        payment_status: paymentReceived >= totalAmount ? "paid" : paymentReceived > 0 ? "partially_paid" : "unpaid",
-        debt_flag: paymentReceived < totalAmount,
-      })
-      .eq("id", editingOrderId);
-    if (error) {
-      toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "შეკვეთა განახლდა" });
-      setShowEditOrderDialog(false);
-      setEditingOrderId(null);
-      fetchOrders();
+
+    try {
+      for (const line of editOrderLines) {
+        if (line.quantity !== line.original_quantity) {
+          await supabase
+            .from("order_lines")
+            .update({ quantity: line.quantity })
+            .eq("id", line.id);
+        }
+      }
+
+      const newTotalQuantity = editOrderLines.reduce((sum, l) => sum + l.quantity, 0);
+
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          total_amount: totalAmount,
+          notes: editOrder.notes || null,
+          payment_received_amount: paymentReceived,
+          payment_status: paymentReceived >= totalAmount ? "paid" : paymentReceived > 0 ? "partially_paid" : "unpaid",
+          debt_flag: paymentReceived < totalAmount,
+          total_quantity: newTotalQuantity,
+        })
+        .eq("id", editingOrderId);
+
+      if (error) {
+        toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "შეკვეთა განახლდა" });
+        setShowEditOrderDialog(false);
+        setEditingOrderId(null);
+        setEditOrderLines([]);
+        fetchOrders();
+      }
+    } catch (error) {
+      toast({ title: "შეცდომა", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
     }
   };
 
@@ -1752,7 +1785,30 @@ const Orders = () => {
             <DialogTitle>შეკვეთის რედაქტირება</DialogTitle>
             <DialogDescription>შეცვალეთ შეკვეთის მონაცემები</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 mt-4">
+          <div className="space-y-4 mt-4 max-h-[70vh] overflow-y-auto">
+            {editOrderLines.length > 0 && (
+              <div className="space-y-2">
+                <Label>პროდუქტები და რაოდენობა</Label>
+                <div className="space-y-2 border rounded-md p-3">
+                  {editOrderLines.map((line, idx) => (
+                    <div key={line.id} className="flex items-center justify-between gap-2">
+                      <span className="text-sm flex-1 truncate">{line.product_name}</span>
+                      <Input
+                        type="number"
+                        min="1"
+                        className="w-20"
+                        value={line.quantity}
+                        onChange={(e) => {
+                          const newLines = [...editOrderLines];
+                          newLines[idx] = { ...newLines[idx], quantity: parseInt(e.target.value) || 1 };
+                          setEditOrderLines(newLines);
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>სრული თანხა ($)</Label>
               <Input type="number" step="0.01" value={editOrder.total_amount} onChange={(e) => setEditOrder({ ...editOrder, total_amount: e.target.value })} />
