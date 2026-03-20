@@ -623,7 +623,7 @@ const Finance = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -632,28 +632,56 @@ const Finance = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-success">
-                ${entries.filter(e => e.type === "income").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
+              <div className="text-2xl sm:text-3xl font-bold text-success">
+                ${nonDebtEntries.filter(e => e.type === "income").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-warning" />
-                გადასახდელი ვალი
+                <TrendingDown className="h-4 w-4 text-destructive" />
+                სრული ხარჯები
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={`text-3xl font-bold ${totalDebt > 0 ? "text-warning" : "text-muted-foreground"}`}>
-                ${totalDebt.toLocaleString()}
+              <div className="text-2xl sm:text-3xl font-bold text-destructive">
+                ${nonDebtEntries.filter(e => e.type === "expense").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
               </div>
-              {totalDebt > 0 && (
-                <p className="text-xs text-muted-foreground mt-2">შეკვეთებიდან გადასახდელი</p>
-              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" />
+                მიმდინარე ბალანსი
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl sm:text-3xl font-bold ${balance >= 0 ? "text-success" : "text-destructive"}`}>
+                ${balance.toLocaleString()}
+              </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Separate Debt Section */}
+        {totalDebt > 0 && (
+          <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <DollarSign className="h-4 w-4" />
+                ვალდებულებები (ვალი)
+              </CardTitle>
+              <CardDescription>შეკვეთებიდან გადასახდელი თანხები — ბალანსში არ აისახება</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400">
+                ${totalDebt.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Product Purchases */}
         <Card>
