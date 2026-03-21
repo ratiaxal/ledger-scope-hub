@@ -478,104 +478,172 @@ const Warehouse = () => {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
-                {products.map((product) => (
-                  <div
-                    key={product.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <Package className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{product.name}</span>
-                        {product.sku && (
-                          <span className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full">
-                            {product.sku}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Last updated: {new Date(product.updated_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold">
-                          {product.current_stock}
+              <div className="space-y-6">
+                {(() => {
+                  // Group products by numeric value in name
+                  const extractNumber = (name: string): string | null => {
+                    const match = name.match(/\d+/);
+                    return match ? match[0] : null;
+                  };
+
+                  const groups = new Map<string, Product[]>();
+                  const ungrouped: Product[] = [];
+
+                  products.forEach((product) => {
+                    const num = extractNumber(product.name);
+                    if (num) {
+                      if (!groups.has(num)) groups.set(num, []);
+                      groups.get(num)!.push(product);
+                    } else {
+                      ungrouped.push(product);
+                    }
+                  });
+
+                  // Sort group keys numerically
+                  const sortedKeys = Array.from(groups.keys()).sort((a, b) => parseInt(a) - parseInt(b));
+
+                  const renderProduct = (product: Product) => (
+                    <div
+                      key={product.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{product.name}</span>
+                          {product.sku && (
+                            <span className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full">
+                              {product.sku}
+                            </span>
+                          )}
                         </div>
-                        <div className="text-xs text-muted-foreground">units</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Last updated: {new Date(product.updated_at).toLocaleDateString()}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-1 sm:gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onMouseDown={() => handleStartHold(product.id, -1)}
-                          onMouseUp={handleStopHold}
-                          onMouseLeave={handleStopHold}
-                          onTouchStart={() => handleStartHold(product.id, -1)}
-                          onTouchEnd={handleStopHold}
-                          disabled={product.current_stock === 0}
-                        >
-                          <TrendingDown className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onMouseDown={() => handleStartHold(product.id, 1)}
-                          onMouseUp={handleStopHold}
-                          onMouseLeave={handleStopHold}
-                          onTouchStart={() => handleStartHold(product.id, 1)}
-                          onTouchEnd={handleStopHold}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setReduceProduct(product);
-                            setShowReduceDialog(true);
-                          }}
-                          className="gap-1"
-                        >
-                          <TrendingDown className="h-4 w-4" />
-                          <span className="hidden sm:inline">შემცირება</span>
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)} className="gap-1">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-muted-foreground hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>პროდუქტის წაშლა</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                დარწმუნებული ხართ, რომ გსურთ "{product.name}"-ის სრულად წაშლა სისტემიდან? ეს მოქმედება შეუქცევადია და წაშლის ყველა დაკავშირებულ მონაცემს.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>გაუქმება</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => handleDeleteProduct(product.id, product.name)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">
+                            {product.current_stock}
+                          </div>
+                          <div className="text-xs text-muted-foreground">units</div>
+                        </div>
+                        <div className="flex flex-wrap gap-1 sm:gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onMouseDown={() => handleStartHold(product.id, -1)}
+                            onMouseUp={handleStopHold}
+                            onMouseLeave={handleStopHold}
+                            onTouchStart={() => handleStartHold(product.id, -1)}
+                            onTouchEnd={handleStopHold}
+                            disabled={product.current_stock === 0}
+                          >
+                            <TrendingDown className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onMouseDown={() => handleStartHold(product.id, 1)}
+                            onMouseUp={handleStopHold}
+                            onMouseLeave={handleStopHold}
+                            onTouchStart={() => handleStartHold(product.id, 1)}
+                            onTouchEnd={handleStopHold}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setReduceProduct(product);
+                              setShowReduceDialog(true);
+                            }}
+                            className="gap-1"
+                          >
+                            <TrendingDown className="h-4 w-4" />
+                            <span className="hidden sm:inline">შემცირება</span>
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)} className="gap-1">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-muted-foreground hover:text-destructive"
                               >
-                                წაშლა
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>პროდუქტის წაშლა</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  დარწმუნებული ხართ, რომ გსურთ "{product.name}"-ის სრულად წაშლა სისტემიდან? ეს მოქმედება შეუქცევადია და წაშლის ყველა დაკავშირებულ მონაცემს.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>გაუქმება</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => handleDeleteProduct(product.id, product.name)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  წაშლა
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+
+                  return (
+                    <>
+                      {sortedKeys.map((num) => {
+                        const groupProducts = groups.get(num)!;
+                        const groupTotal = groupProducts.reduce((sum, p) => sum + p.current_stock, 0);
+                        return (
+                          <div key={`group-${num}`} className="space-y-2">
+                            <div className="flex items-center gap-2 px-2">
+                              <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                                {num}
+                              </div>
+                              <span className="text-sm font-semibold text-muted-foreground">
+                                ჯგუფი #{num}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                ({groupProducts.length} პროდუქტი, სულ: {groupTotal} ერთეული)
+                              </span>
+                            </div>
+                            <div className="space-y-2 pl-2 border-l-2 border-primary/20 ml-3">
+                              {groupProducts.map(renderProduct)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {ungrouped.length > 0 && (
+                        <div className="space-y-2">
+                          {sortedKeys.length > 0 && (
+                            <div className="flex items-center gap-2 px-2">
+                              <span className="text-sm font-semibold text-muted-foreground">
+                                დაუჯგუფებელი
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                ({ungrouped.length} პროდუქტი)
+                              </span>
+                            </div>
+                          )}
+                          <div className="space-y-2">
+                            {ungrouped.map(renderProduct)}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </CardContent>
