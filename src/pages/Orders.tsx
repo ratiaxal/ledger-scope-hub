@@ -1040,13 +1040,26 @@ const Orders = () => {
   const handleSaveEditOrder = async () => {
     if (!editingOrderId) return;
     const totalAmount = parseFloat(editOrder.total_amount);
-    const paymentReceived = parseFloat(editOrder.payment_received_amount) || 0;
+    const newPaymentReceived = parseFloat(editOrder.payment_received_amount) || 0;
     if (isNaN(totalAmount)) {
       toast({ title: "არასწორი თანხა", variant: "destructive" });
       return;
     }
 
     try {
+      // Fetch old order data to detect payment changes
+      const { data: oldOrderData, error: fetchOldError } = await supabase
+        .from("orders")
+        .select("payment_received_amount, total_amount, company_id")
+        .eq("id", editingOrderId)
+        .single();
+
+      if (fetchOldError || !oldOrderData) throw fetchOldError || new Error("Order not found");
+
+      const oldPaymentReceived = parseFloat(String(oldOrderData.payment_received_amount)) || 0;
+      const paymentDifference = newPaymentReceived - oldPaymentReceived;
+
+      // Update order lines
       for (const line of editOrderLines) {
         if (line.quantity !== line.original_quantity) {
           await supabase
@@ -1063,22 +1076,48 @@ const Orders = () => {
         .update({
           total_amount: totalAmount,
           notes: editOrder.notes || null,
-          payment_received_amount: paymentReceived,
-          payment_status: paymentReceived >= totalAmount ? "paid" : paymentReceived > 0 ? "partially_paid" : "unpaid",
-          debt_flag: paymentReceived < totalAmount,
+          payment_received_amount: newPaymentReceived,
+          payment_status: newPaymentReceived >= totalAmount ? "paid" : newPaymentReceived > 0 ? "partially_paid" : "unpaid",
+          debt_flag: newPaymentReceived < totalAmount,
           total_quantity: newTotalQuantity,
         })
         .eq("id", editingOrderId);
 
       if (error) {
         toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
-      } else {
-        toast({ title: "შეკვეთა განახლდა" });
-        setShowEditOrderDialog(false);
-        setEditingOrderId(null);
-        setEditOrderLines([]);
-        fetchOrders();
+        return;
       }
+
+      // Create finance entry for payment difference
+      if (paymentDifference !== 0) {
+        const companyId = oldOrderData.company_id;
+
+        if (paymentDifference < 0) {
+          // Refund: payment was reduced — record as expense (money going out)
+          await supabase.from("finance_entries").insert({
+            type: "expense",
+            amount: Math.abs(paymentDifference),
+            company_id: companyId,
+            related_order_id: editingOrderId,
+            comment: `თანხის დაბრუნება (რეფანდი) - შეკვეთის რედაქტირება`,
+          });
+        } else {
+          // Additional payment received — record as income
+          await supabase.from("finance_entries").insert({
+            type: "income",
+            amount: paymentDifference,
+            company_id: companyId,
+            related_order_id: editingOrderId,
+            comment: `დამატებითი გადახდა - შეკვეთის რედაქტირება`,
+          });
+        }
+      }
+
+      toast({ title: "შეკვეთა განახლდა" });
+      setShowEditOrderDialog(false);
+      setEditingOrderId(null);
+      setEditOrderLines([]);
+      fetchOrders();
     } catch (error) {
       toast({ title: "შეცდომა", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
     }
