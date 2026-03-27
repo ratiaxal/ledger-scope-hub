@@ -320,7 +320,7 @@ const SoldProducts = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-primary">
-                {totalSold.toLocaleString()}
+                {totalSold.toLocaleString()} ცალი
               </div>
             </CardContent>
           </Card>
@@ -359,7 +359,7 @@ const SoldProducts = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-primary">
-                ${totalRevenue.toLocaleString()}
+                {totalRevenue.toLocaleString()}₾
               </div>
             </CardContent>
           </Card>
@@ -403,10 +403,10 @@ const SoldProducts = () => {
                 <div className="p-4 border rounded-lg">
                   <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                     <Package className="h-4 w-4 text-primary" />
-                    გაყიდული ერთეული (ლიტრი)
+                    გაყიდული ერთეული (ცალი)
                   </div>
                   <div className="text-2xl font-bold text-primary">
-                    {monthlySold.toLocaleString()}
+                    {monthlySold.toLocaleString()} ცალი
                   </div>
                   {previousMonthlySold > 0 && (
                     <div className={`text-sm mt-1 flex items-center gap-1 ${quantityChange >= 0 ? 'text-success' : 'text-warning'}`}>
@@ -421,7 +421,7 @@ const SoldProducts = () => {
                     შემოსავალი
                   </div>
                   <div className="text-2xl font-bold text-success">
-                    ${monthlyRevenue.toLocaleString()}
+                    {monthlyRevenue.toLocaleString()}₾
                   </div>
                   {previousMonthlyRevenue > 0 && (
                     <div className={`text-sm mt-1 flex items-center gap-1 ${revenueChange >= 0 ? 'text-success' : 'text-warning'}`}>
@@ -461,10 +461,13 @@ const SoldProducts = () => {
                         <span className="font-medium">{product.name}</span>
                         <div className="flex gap-6 text-sm">
                           <span className="text-muted-foreground">
-                            რაოდენობა: <span className="font-bold text-foreground">{product.quantity.toLocaleString()} ლიტრი</span>
+                            ცალი: <span className="font-bold text-foreground">{product.quantity.toLocaleString()}</span>
                           </span>
                           <span className="text-muted-foreground">
-                            შემოსავალი: <span className="font-bold text-success">${product.revenue.toFixed(2)}</span>
+                            ფასი: <span className="font-bold text-foreground">{product.avg_unit_price.toFixed(2)}₾</span>
+                          </span>
+                          <span className="text-muted-foreground">
+                            ჯამი: <span className="font-bold text-success">{product.revenue.toFixed(2)}₾</span>
                           </span>
                         </div>
                       </div>
@@ -521,7 +524,7 @@ const SoldProducts = () => {
                   გაყიდული ერთეული
                 </div>
                 <div className="text-2xl font-bold text-primary">
-                  {yearlySold.toLocaleString()}
+                  {yearlySold.toLocaleString()} ცალი
                 </div>
               </div>
               <div className="p-4 border rounded-lg">
@@ -530,7 +533,7 @@ const SoldProducts = () => {
                   შემოსავალი
                 </div>
                 <div className="text-2xl font-bold text-success">
-                  ${yearlyRevenue.toLocaleString()}
+                  {yearlyRevenue.toLocaleString()}₾
                 </div>
               </div>
             </div>
@@ -577,10 +580,10 @@ const SoldProducts = () => {
                   <div className="p-4 border rounded-lg">
                     <div className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                       <Package className="h-4 w-4 text-primary" />
-                      გაყიდული ერთეული (ლიტრი)
+                      გაყიდული ერთეული (ცალი)
                     </div>
                     <div className="text-2xl font-bold text-primary">
-                      {dateRangeSold.toLocaleString()}
+                      {dateRangeSold.toLocaleString()} ცალი
                     </div>
                   </div>
                   <div className="p-4 border rounded-lg">
@@ -589,7 +592,7 @@ const SoldProducts = () => {
                       შემოსავალი
                     </div>
                     <div className="text-2xl font-bold text-success">
-                      ${dateRangeRevenue.toLocaleString()}
+                      {dateRangeRevenue.toLocaleString()}₾
                     </div>
                   </div>
                 </div>
@@ -603,10 +606,13 @@ const SoldProducts = () => {
                           <span className="font-medium">{product.name}</span>
                           <div className="flex gap-6 text-sm">
                             <span className="text-muted-foreground">
-                              რაოდენობა: <span className="font-bold text-foreground">{product.quantity.toLocaleString()} ლიტრი</span>
+                              ცალი: <span className="font-bold text-foreground">{product.quantity.toLocaleString()}</span>
                             </span>
                             <span className="text-muted-foreground">
-                              შემოსავალი: <span className="font-bold text-success">${product.revenue.toFixed(2)}</span>
+                              ფასი: <span className="font-bold text-foreground">{product.avg_unit_price.toFixed(2)}₾</span>
+                            </span>
+                            <span className="text-muted-foreground">
+                              ჯამი: <span className="font-bold text-success">{product.revenue.toFixed(2)}₾</span>
                             </span>
                           </div>
                         </div>
@@ -637,9 +643,9 @@ const SoldProducts = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>პროდუქტის სახელი</TableHead>
-                    <TableHead className="text-right">სულ გაყიდული</TableHead>
-                    <TableHead className="text-right">დაბრუნებული</TableHead>
-                    <TableHead className="text-right">წმინდა გაყიდული</TableHead>
+                    <TableHead className="text-right">გაყიდული (ცალი)</TableHead>
+                    <TableHead className="text-right">დაბრუნებული (ცალი)</TableHead>
+                    <TableHead className="text-right">წმინდა (ცალი)</TableHead>
                     <TableHead className="text-right">შემოსავალი</TableHead>
                     <TableHead className="text-right">წმინდა შემოსავალი</TableHead>
                   </TableRow>
@@ -658,10 +664,10 @@ const SoldProducts = () => {
                         {product.net_sold}
                       </TableCell>
                       <TableCell className="text-right">
-                        ${product.total_revenue.toFixed(2)}
+                        {product.total_revenue.toFixed(2)}₾
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        ${product.net_revenue.toFixed(2)}
+                        {product.net_revenue.toFixed(2)}₾
                       </TableCell>
                     </TableRow>
                   ))}
@@ -696,11 +702,11 @@ const SoldProducts = () => {
                         კომპანია: {transaction.company_name}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {new Date(transaction.created_at).toLocaleDateString()} • {transaction.quantity} items @ ${transaction.unit_price.toFixed(2)}
+                        {new Date(transaction.created_at).toLocaleDateString()} • {transaction.quantity} ცალი × {transaction.unit_price.toFixed(2)}₾
                       </div>
                     </div>
                     <div className="text-xl font-bold text-success">
-                      ${transaction.line_total.toFixed(2)}
+                      {transaction.line_total.toFixed(2)}₾
                     </div>
                   </div>
                 ))}
