@@ -491,7 +491,7 @@ const Warehouse = () => {
                   Add Product
                 </Button>
               </div>
-            ) : (
+              ) : (
               <div className="space-y-6">
                 {(() => {
                   // Group products by numeric value in name
@@ -503,7 +503,7 @@ const Warehouse = () => {
                   const groups = new Map<string, Product[]>();
                   const ungrouped: Product[] = [];
 
-                  products.forEach((product) => {
+                  filtered.forEach((product) => {
                     const num = extractNumber(product.name);
                     if (num) {
                       if (!groups.has(num)) groups.set(num, []);
@@ -659,7 +659,8 @@ const Warehouse = () => {
                   );
                 })()}
               </div>
-            )}
+            );
+            })()}
           </CardContent>
         </Card>
 
