@@ -205,16 +205,21 @@ const SoldProducts = () => {
   const monthlyRevenue = monthlyTransactions.reduce((acc, t) => acc + t.line_total, 0);
 
   // Get product breakdown for selected month
-  const monthlyProductMap = new Map<string, { name: string; quantity: number; revenue: number }>();
+  const monthlyProductMap = new Map<string, { name: string; quantity: number; revenue: number; unit_price: number; count: number }>();
   monthlyTransactions.forEach(t => {
     if (!monthlyProductMap.has(t.product_name)) {
-      monthlyProductMap.set(t.product_name, { name: t.product_name, quantity: 0, revenue: 0 });
+      monthlyProductMap.set(t.product_name, { name: t.product_name, quantity: 0, revenue: 0, unit_price: 0, count: 0 });
     }
     const product = monthlyProductMap.get(t.product_name)!;
     product.quantity += t.quantity;
     product.revenue += t.line_total;
+    product.unit_price += t.unit_price * t.quantity;
+    product.count += t.quantity;
   });
-  const monthlyProducts = Array.from(monthlyProductMap.values()).sort((a, b) => b.quantity - a.quantity);
+  const monthlyProducts = Array.from(monthlyProductMap.values()).map(p => ({
+    ...p,
+    avg_unit_price: p.count > 0 ? p.unit_price / p.count : 0,
+  })).sort((a, b) => b.quantity - a.quantity);
 
   // Calculate previous month data for comparison
   const selectedDate = new Date(selectedMonth + "-01");
@@ -257,16 +262,21 @@ const SoldProducts = () => {
   const dateRangeRevenue = dateRangeTransactions.reduce((acc, t) => acc + t.line_total, 0);
 
   // Get product breakdown for date range
-  const dateRangeProductMap = new Map<string, { name: string; quantity: number; revenue: number }>();
+  const dateRangeProductMap = new Map<string, { name: string; quantity: number; revenue: number; unit_price: number; count: number }>();
   dateRangeTransactions.forEach(t => {
     if (!dateRangeProductMap.has(t.product_name)) {
-      dateRangeProductMap.set(t.product_name, { name: t.product_name, quantity: 0, revenue: 0 });
+      dateRangeProductMap.set(t.product_name, { name: t.product_name, quantity: 0, revenue: 0, unit_price: 0, count: 0 });
     }
     const product = dateRangeProductMap.get(t.product_name)!;
     product.quantity += t.quantity;
     product.revenue += t.line_total;
+    product.unit_price += t.unit_price * t.quantity;
+    product.count += t.quantity;
   });
-  const dateRangeProducts = Array.from(dateRangeProductMap.values()).sort((a, b) => b.quantity - a.quantity);
+  const dateRangeProducts = Array.from(dateRangeProductMap.values()).map(p => ({
+    ...p,
+    avg_unit_price: p.count > 0 ? p.unit_price / p.count : 0,
+  })).sort((a, b) => b.quantity - a.quantity);
 
   // Get month name from date string
   const getMonthName = (dateString: string) => {
@@ -431,11 +441,11 @@ const SoldProducts = () => {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">გაყიდული: </span>
-                      <span className="font-bold">{previousMonthlySold.toLocaleString()} ლიტრი</span>
+                      <span className="font-bold">{previousMonthlySold.toLocaleString()} ცალი</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">შემოსავალი: </span>
-                      <span className="font-bold">${previousMonthlyRevenue.toLocaleString()}</span>
+                      <span className="font-bold">{previousMonthlyRevenue.toLocaleString()}₾</span>
                     </div>
                   </div>
                 </div>
