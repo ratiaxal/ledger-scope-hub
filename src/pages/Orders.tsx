@@ -1161,32 +1161,42 @@ const Orders = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">სულ შეკვეთები</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{orders.length}</div>
+              <div className="text-2xl sm:text-3xl font-bold">{orders.length}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Processing Orders</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">მიმდინარე</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-warning">
+              <div className="text-2xl sm:text-3xl font-bold text-warning">
                 {orders.filter(o => o.status === "open").length}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">შემოსავალი</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-success">
+              <div className="text-2xl sm:text-3xl font-bold text-success">
                 ${orders.reduce((acc, o) => acc + o.total, 0).toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground">დავალიანება</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl sm:text-3xl font-bold text-destructive">
+                ${orders.filter(o => o.debtFlag).reduce((acc, o) => acc + (o.total - (o.paymentReceived || 0)), 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
