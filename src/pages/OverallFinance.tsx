@@ -51,6 +51,7 @@ const OverallFinance = () => {
   const [showEditEntryDialog, setShowEditEntryDialog] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FinanceEntry | null>(null);
   const [editEntry, setEditEntry] = useState({ amount: "", type: "income" as "income" | "expense", comment: "" });
+  const [debtsByCompany, setDebtsByCompany] = useState<{ companyName: string; companyId: string | null; totalDebt: number; orderCount: number }[]>([]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -67,24 +68,39 @@ const OverallFinance = () => {
   const fetchData = async () => {
     setLoading(true);
 
-    const { data: entriesData, error: entriesError } = await supabase
-      .from("finance_entries")
-      .select(`
-        *,
-        companies (
-          name
-        )
-      `)
-      .order("created_at", { ascending: false });
+    const [entriesResult, ordersResult] = await Promise.all([
+      supabase
+        .from("finance_entries")
+        .select(`*, companies ( name )`)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("orders")
+        .select(`id, company_id, manual_company_name, total_amount, payment_received_amount, debt_flag, companies ( name )`)
+        .eq("debt_flag", true),
+    ]);
 
-    if (entriesError) {
-      toast({
-        title: "Error loading entries",
-        description: entriesError.message,
-        variant: "destructive",
-      });
+    if (entriesResult.error) {
+      toast({ title: "Error loading entries", description: entriesResult.error.message, variant: "destructive" });
     } else {
-      setEntries(entriesData || []);
+      setEntries(entriesResult.data || []);
+    }
+
+    if (!ordersResult.error && ordersResult.data) {
+      const grouped = new Map<string, { companyName: string; companyId: string | null; totalDebt: number; orderCount: number }>();
+      for (const order of ordersResult.data) {
+        const key = order.company_id || order.manual_company_name || "unknown";
+        const companyName = (order.companies as any)?.name || order.manual_company_name || "უცნობი";
+        const unpaid = order.total_amount - (order.payment_received_amount || 0);
+        if (unpaid <= 0) continue;
+        const existing = grouped.get(key);
+        if (existing) {
+          existing.totalDebt += unpaid;
+          existing.orderCount += 1;
+        } else {
+          grouped.set(key, { companyName, companyId: order.company_id, totalDebt: unpaid, orderCount: 1 });
+        }
+      }
+      setDebtsByCompany(Array.from(grouped.values()).sort((a, b) => b.totalDebt - a.totalDebt));
     }
 
     setLoading(false);
@@ -551,7 +567,53 @@ const OverallFinance = () => {
           </Card>
         </div>
 
-        {/* Monthly Summary */}
+        {/* Outstanding Debts by Company */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-amber-500" />
+              დავალიანებები კომპანიების მიხედვით
+            </CardTitle>
+            <CardDescription>ყველა კომპანია/პირი გადაუხდელი თანხებით</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {debtsByCompany.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">გადაუხდელი დავალიანებები არ არის</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                  <span className="font-semibold text-amber-500">სულ დავალიანება</span>
+                  <span className="text-xl font-bold text-amber-500">
+                    ${debtsByCompany.reduce((acc, d) => acc + d.totalDebt, 0).toLocaleString()}
+                  </span>
+                </div>
+                {debtsByCompany.map((debt, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div>
+                      <div className="font-medium flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        {debt.companyId ? (
+                          <Link to={`/orders/${debt.companyId}`} className="hover:underline text-primary">
+                            {debt.companyName}
+                          </Link>
+                        ) : (
+                          <span>{debt.companyName}</span>
+                        )}
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {debt.orderCount} გადაუხდელი შეკვეთა
+                      </div>
+                    </div>
+                    <div className="text-xl font-bold text-amber-500">
+                      ${debt.totalDebt.toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
