@@ -51,6 +51,7 @@ const OverallFinance = () => {
   const [showEditEntryDialog, setShowEditEntryDialog] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FinanceEntry | null>(null);
   const [editEntry, setEditEntry] = useState({ amount: "", type: "income" as "income" | "expense", comment: "" });
+  const [debtsByCompany, setDebtsByCompany] = useState<{ companyName: string; companyId: string | null; totalDebt: number; orderCount: number }[]>([]);
 
   useEffect(() => {
     if (!authLoading && !user) {
