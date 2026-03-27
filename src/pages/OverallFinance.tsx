@@ -68,24 +68,39 @@ const OverallFinance = () => {
   const fetchData = async () => {
     setLoading(true);
 
-    const { data: entriesData, error: entriesError } = await supabase
-      .from("finance_entries")
-      .select(`
-        *,
-        companies (
-          name
-        )
-      `)
-      .order("created_at", { ascending: false });
+    const [entriesResult, ordersResult] = await Promise.all([
+      supabase
+        .from("finance_entries")
+        .select(`*, companies ( name )`)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("orders")
+        .select(`id, company_id, manual_company_name, total_amount, payment_received_amount, debt_flag, companies ( name )`)
+        .eq("debt_flag", true),
+    ]);
 
-    if (entriesError) {
-      toast({
-        title: "Error loading entries",
-        description: entriesError.message,
-        variant: "destructive",
-      });
+    if (entriesResult.error) {
+      toast({ title: "Error loading entries", description: entriesResult.error.message, variant: "destructive" });
     } else {
-      setEntries(entriesData || []);
+      setEntries(entriesResult.data || []);
+    }
+
+    if (!ordersResult.error && ordersResult.data) {
+      const grouped = new Map<string, { companyName: string; companyId: string | null; totalDebt: number; orderCount: number }>();
+      for (const order of ordersResult.data) {
+        const key = order.company_id || order.manual_company_name || "unknown";
+        const companyName = (order.companies as any)?.name || order.manual_company_name || "უცნობი";
+        const unpaid = order.total_amount - (order.payment_received_amount || 0);
+        if (unpaid <= 0) continue;
+        const existing = grouped.get(key);
+        if (existing) {
+          existing.totalDebt += unpaid;
+          existing.orderCount += 1;
+        } else {
+          grouped.set(key, { companyName, companyId: order.company_id, totalDebt: unpaid, orderCount: 1 });
+        }
+      }
+      setDebtsByCompany(Array.from(grouped.values()).sort((a, b) => b.totalDebt - a.totalDebt));
     }
 
     setLoading(false);
