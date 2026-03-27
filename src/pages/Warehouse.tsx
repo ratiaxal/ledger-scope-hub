@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Package, Plus, TrendingDown, Trash2, DollarSign, Pencil } from "lucide-react";
+import { Package, Plus, TrendingDown, Trash2, DollarSign, Pencil, Search } from "lucide-react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +47,7 @@ const Warehouse = () => {
   const [showEditProductDialog, setShowEditProductDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editProduct, setEditProduct] = useState({ name: "", current_stock: "" });
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchWarehouses();
@@ -465,9 +466,22 @@ const Warehouse = () => {
           <CardHeader>
             <CardTitle>Current Inventory</CardTitle>
             <CardDescription>Manage stock levels and track inventory</CardDescription>
+            <div className="relative mt-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="პროდუქტის ძებნა სახელით ან რიცხვით..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
           </CardHeader>
           <CardContent>
-            {products.length === 0 ? (
+            {(() => {
+              const filtered = searchQuery.trim()
+                ? products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                : products;
+              return filtered.length === 0 ? (
               <div className="py-12 text-center">
                 <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium mb-2">No products yet</h3>
@@ -477,7 +491,7 @@ const Warehouse = () => {
                   Add Product
                 </Button>
               </div>
-            ) : (
+              ) : (
               <div className="space-y-6">
                 {(() => {
                   // Group products by numeric value in name
@@ -489,7 +503,7 @@ const Warehouse = () => {
                   const groups = new Map<string, Product[]>();
                   const ungrouped: Product[] = [];
 
-                  products.forEach((product) => {
+                  filtered.forEach((product) => {
                     const num = extractNumber(product.name);
                     if (num) {
                       if (!groups.has(num)) groups.set(num, []);
@@ -645,7 +659,8 @@ const Warehouse = () => {
                   );
                 })()}
               </div>
-            )}
+            );
+            })()}
           </CardContent>
         </Card>
 
