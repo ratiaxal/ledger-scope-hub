@@ -516,7 +516,7 @@ const OverallFinance = () => {
         <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">სრული ბალანსი</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">მიმდინარე ბალანსი</CardTitle>
             </CardHeader>
             <CardContent>
               <div className={`text-3xl font-bold ${balance >= 0 ? "text-success" : "text-destructive"}`}>
