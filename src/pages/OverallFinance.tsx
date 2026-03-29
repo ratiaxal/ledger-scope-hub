@@ -264,12 +264,10 @@ const OverallFinance = () => {
     }
   };
 
-  // Balance excludes debt-related entries (liabilities tracked separately)
-  const balance = entries
-    .filter(e => !e.related_order_id)
-    .reduce((acc, entry) => {
-      return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
-    }, 0);
+  // Balance reflects actual cash: all income (including order payments) minus all expenses
+  const balance = entries.reduce((acc, entry) => {
+    return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
+  }, 0);
 
   const totalIncome = entries
     .filter(e => e.type === "income")

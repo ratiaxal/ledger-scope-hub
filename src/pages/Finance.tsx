@@ -240,9 +240,8 @@ const Finance = () => {
     setProductPurchases(Array.from(productMap.values()).sort((a, b) => b.total_quantity - a.total_quantity));
   };
 
-  // Balance excludes debt-related entries
-  const nonDebtEntries = entries.filter(e => !e.related_order_id);
-  const balance = nonDebtEntries.reduce((acc, entry) => {
+  // Balance reflects actual cash: all income (including order payments) minus all expenses
+  const balance = entries.reduce((acc, entry) => {
     return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
   }, 0);
 
