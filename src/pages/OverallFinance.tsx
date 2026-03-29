@@ -531,6 +531,44 @@ const OverallFinance = () => {
                 </div>
               </DialogContent>
             </Dialog>
+            <Dialog open={showAdjustDialog} onOpenChange={setShowAdjustDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Pencil className="h-4 w-4" />
+                  ბალანსის კორექტირება
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>ბალანსის კორექტირება</DialogTitle>
+                  <DialogDescription>
+                    მიმდინარე ბალანსი: <span className="font-bold text-lg">₾{balance.toLocaleString()}</span>
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="adjust-amount">რეალური თანხა (₾) *</Label>
+                    <Input
+                      id="adjust-amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={adjustAmount}
+                      onChange={(e) => setAdjustAmount(e.target.value)}
+                      placeholder="მაგ: 40"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleAdjustBalance} className="flex-1">
+                      განახლება
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowAdjustDialog(false)}>
+                      გაუქმება
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
             <Button
               variant="destructive"
               size="sm"
