@@ -632,7 +632,7 @@ const Finance = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl sm:text-3xl font-bold text-success">
-                ${nonDebtEntries.filter(e => e.type === "income").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
+                ${entries.filter(e => e.type === "income").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -645,7 +645,7 @@ const Finance = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl sm:text-3xl font-bold text-destructive">
-                ${nonDebtEntries.filter(e => e.type === "expense").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
+                ${entries.filter(e => e.type === "expense").reduce((acc, e) => acc + e.amount, 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
