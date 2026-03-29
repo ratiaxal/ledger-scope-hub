@@ -266,7 +266,37 @@ const OverallFinance = () => {
     }
   };
 
-  // Balance reflects actual cash: all income (including order payments) minus all expenses
+  const handleAdjustBalance = async () => {
+    if (!adjustAmount || !user) return;
+    const targetBalance = parseFloat(adjustAmount);
+    if (isNaN(targetBalance) || targetBalance < 0) {
+      toast({ title: "არასწორი თანხა", variant: "destructive" });
+      return;
+    }
+    const diff = targetBalance - balance;
+    if (diff === 0) {
+      toast({ title: "ბალანსი უკვე სწორია" });
+      setShowAdjustDialog(false);
+      return;
+    }
+    const { error } = await supabase.from("finance_entries").insert([{
+      company_id: null,
+      type: diff > 0 ? "income" : "expense",
+      amount: Math.abs(diff),
+      comment: `ბალანსის კორექტირება: ${balance.toFixed(2)} → ${targetBalance.toFixed(2)}`,
+      created_by: user.id,
+    }]);
+    if (error) {
+      toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "ბალანსი განახლდა", description: `მიმდინარე ბალანსი: ₾${targetBalance.toLocaleString()}` });
+      setAdjustAmount("");
+      setShowAdjustDialog(false);
+      fetchData();
+    }
+  };
+
+
   const balance = entries.reduce((acc, entry) => {
     return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
   }, 0);
