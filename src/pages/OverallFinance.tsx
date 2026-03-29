@@ -52,6 +52,8 @@ const OverallFinance = () => {
   const [editingEntry, setEditingEntry] = useState<FinanceEntry | null>(null);
   const [editEntry, setEditEntry] = useState({ amount: "", type: "income" as "income" | "expense", comment: "" });
   const [debtsByCompany, setDebtsByCompany] = useState<{ companyName: string; companyId: string | null; totalDebt: number; orderCount: number }[]>([]);
+  const [showAdjustDialog, setShowAdjustDialog] = useState(false);
+  const [adjustAmount, setAdjustAmount] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -264,7 +266,37 @@ const OverallFinance = () => {
     }
   };
 
-  // Balance reflects actual cash: all income (including order payments) minus all expenses
+  const handleAdjustBalance = async () => {
+    if (!adjustAmount || !user) return;
+    const targetBalance = parseFloat(adjustAmount);
+    if (isNaN(targetBalance) || targetBalance < 0) {
+      toast({ title: "არასწორი თანხა", variant: "destructive" });
+      return;
+    }
+    const diff = targetBalance - balance;
+    if (diff === 0) {
+      toast({ title: "ბალანსი უკვე სწორია" });
+      setShowAdjustDialog(false);
+      return;
+    }
+    const { error } = await supabase.from("finance_entries").insert([{
+      company_id: null,
+      type: diff > 0 ? "income" : "expense",
+      amount: Math.abs(diff),
+      comment: `ბალანსის კორექტირება: ${balance.toFixed(2)} → ${targetBalance.toFixed(2)}`,
+      created_by: user.id,
+    }]);
+    if (error) {
+      toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "ბალანსი განახლდა", description: `მიმდინარე ბალანსი: ₾${targetBalance.toLocaleString()}` });
+      setAdjustAmount("");
+      setShowAdjustDialog(false);
+      fetchData();
+    }
+  };
+
+
   const balance = entries.reduce((acc, entry) => {
     return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
   }, 0);
@@ -493,6 +525,44 @@ const OverallFinance = () => {
                       თანხის გატანა
                     </Button>
                     <Button variant="outline" onClick={() => setShowWithdrawDialog(false)}>
+                      გაუქმება
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={showAdjustDialog} onOpenChange={setShowAdjustDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Pencil className="h-4 w-4" />
+                  ბალანსის კორექტირება
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>ბალანსის კორექტირება</DialogTitle>
+                  <DialogDescription>
+                    მიმდინარე ბალანსი: <span className="font-bold text-lg">₾{balance.toLocaleString()}</span>
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="adjust-amount">რეალური თანხა (₾) *</Label>
+                    <Input
+                      id="adjust-amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={adjustAmount}
+                      onChange={(e) => setAdjustAmount(e.target.value)}
+                      placeholder="მაგ: 40"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleAdjustBalance} className="flex-1">
+                      განახლება
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowAdjustDialog(false)}>
                       გაუქმება
                     </Button>
                   </div>
