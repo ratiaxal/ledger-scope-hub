@@ -297,9 +297,9 @@ const OverallFinance = () => {
   };
 
 
-  const balance = entries.reduce((acc, entry) => {
+  const balance = Math.max(0, entries.reduce((acc, entry) => {
     return entry.type === "income" ? acc + entry.amount : acc - entry.amount;
-  }, 0);
+  }, 0));
 
   const totalIncome = entries
     .filter(e => e.type === "income")
