@@ -313,32 +313,14 @@ const SoldProducts = () => {
         </div>
 
         {/* Overall Summary Cards */}
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">გაყიდული ერთეული (წმინდა)</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">გაყიდული ერთეული</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-primary">
                 {totalSold.toLocaleString()} ცალი
-              </div>
-              {totalReturned > 0 && (
-                <div className="text-sm text-muted-foreground mt-1">
-                  დაბრუნებული: {totalReturned} ცალი (გამოკლებულია)
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-warning" />
-                დაბრუნებული ერთეული
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-warning">
-                {totalReturned.toLocaleString()} ცალი
               </div>
             </CardContent>
           </Card>
