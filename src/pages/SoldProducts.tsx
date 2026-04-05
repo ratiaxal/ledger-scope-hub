@@ -182,10 +182,10 @@ const SoldProducts = () => {
   };
 
   // Calculate totals
-  const totalSold = productSales.reduce((acc, p) => acc + p.total_sold, 0);
+  const totalSold = productSales.reduce((acc, p) => acc + p.net_sold, 0);
   const totalReturned = productSales.reduce((acc, p) => acc + p.total_returned, 0);
   const netSold = productSales.reduce((acc, p) => acc + p.net_sold, 0);
-  const totalRevenue = productSales.reduce((acc, p) => acc + p.total_revenue, 0);
+  const totalRevenue = productSales.reduce((acc, p) => acc + p.net_revenue, 0);
 
   // Get available months and years from transactions
   const availableMonths = Array.from(new Set(
@@ -313,15 +313,20 @@ const SoldProducts = () => {
         </div>
 
         {/* Overall Summary Cards */}
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">სულ გაყიდული ერთეული</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">გაყიდული ერთეული (წმინდა)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-primary">
                 {totalSold.toLocaleString()} ცალი
               </div>
+              {totalReturned > 0 && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  დაბრუნებული: {totalReturned} ცალი (გამოკლებულია)
+                </div>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -333,32 +338,19 @@ const SoldProducts = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-warning">
-                {totalReturned.toLocaleString()}
+                {totalReturned.toLocaleString()} ცალი
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-success" />
-                წმინდა გაყიდული
+                <DollarSign className="h-4 w-4 text-success" />
+                წმინდა შემოსავალი
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-success">
-                {netSold.toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-primary" />
-                სრული შემოსავალი
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">
                 {totalRevenue.toLocaleString()}₾
               </div>
             </CardContent>
@@ -643,10 +635,8 @@ const SoldProducts = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>პროდუქტის სახელი</TableHead>
-                    <TableHead className="text-right">გაყიდული (ცალი)</TableHead>
+                    <TableHead className="text-right">წმინდა გაყიდული (ცალი)</TableHead>
                     <TableHead className="text-right">დაბრუნებული (ცალი)</TableHead>
-                    <TableHead className="text-right">წმინდა (ცალი)</TableHead>
-                    <TableHead className="text-right">შემოსავალი</TableHead>
                     <TableHead className="text-right">წმინდა შემოსავალი</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -655,18 +645,12 @@ const SoldProducts = () => {
                     <TableRow key={product.product_id}>
                       <TableCell className="font-medium">{product.product_name}</TableCell>
                       <TableCell className="text-right text-primary font-medium">
-                        {product.total_sold}
+                        {product.net_sold}
                       </TableCell>
                       <TableCell className="text-right text-warning">
                         {product.total_returned}
                       </TableCell>
-                      <TableCell className="text-right text-success font-medium">
-                        {product.net_sold}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {product.total_revenue.toFixed(2)}₾
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-right font-medium text-success">
                         {product.net_revenue.toFixed(2)}₾
                       </TableCell>
                     </TableRow>
