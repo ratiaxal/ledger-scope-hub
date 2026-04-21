@@ -1274,42 +1274,66 @@ const Orders = () => {
                     Add Selected ({selectedProducts.size})
                   </Button>
                 </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="ძებნა პროდუქტის სახელით..."
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
                 <div className="border rounded-lg max-h-64 overflow-y-auto">
                   {products.length === 0 ? (
                     <div className="p-4 text-center text-muted-foreground">
                       No products available
                     </div>
                   ) : (
-                    <div className="divide-y">
-                      {products.map((product) => {
-                        const isAlreadyAdded = orderLines.some(line => line.product_id === product.id);
+                    (() => {
+                      const filteredProducts = products.filter(p =>
+                        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+                        (p.sku?.toLowerCase().includes(productSearch.toLowerCase()) ?? false)
+                      );
+                      if (filteredProducts.length === 0) {
                         return (
-                          <div
-                            key={product.id}
-                            className={`flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors ${
-                              isAlreadyAdded ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                            }`}
-                            onClick={() => !isAlreadyAdded && handleToggleProduct(product.id)}
-                          >
-                            <Checkbox
-                              checked={selectedProducts.has(product.id)}
-                              onCheckedChange={() => !isAlreadyAdded && handleToggleProduct(product.id)}
-                              disabled={isAlreadyAdded}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate">{product.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {product.sku && `SKU: ${product.sku} • `}
-                                Stock: {product.current_stock}
-                              </div>
-                            </div>
-                            {isAlreadyAdded && (
-                              <span className="text-xs text-muted-foreground">Already added</span>
-                            )}
+                          <div className="p-4 text-center text-muted-foreground">
+                            პროდუქტი ვერ მოიძებნა
                           </div>
                         );
-                      })}
-                    </div>
+                      }
+                      return (
+                        <div className="divide-y">
+                          {filteredProducts.map((product) => {
+                            const isAlreadyAdded = orderLines.some(line => line.product_id === product.id);
+                            return (
+                              <div
+                                key={product.id}
+                                className={`flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors ${
+                                  isAlreadyAdded ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                                }`}
+                                onClick={() => !isAlreadyAdded && handleToggleProduct(product.id)}
+                              >
+                                <Checkbox
+                                  checked={selectedProducts.has(product.id)}
+                                  onCheckedChange={() => !isAlreadyAdded && handleToggleProduct(product.id)}
+                                  disabled={isAlreadyAdded}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium truncate">{product.name}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {product.sku && `SKU: ${product.sku} • `}
+                                    Stock: {product.current_stock}
+                                  </div>
+                                </div>
+                                {isAlreadyAdded && (
+                                  <span className="text-xs text-muted-foreground">Already added</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()
                   )}
                 </div>
               </div>
