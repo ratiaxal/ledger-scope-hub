@@ -69,6 +69,7 @@ const Orders = () => {
     id: string;
     companyId: string | null;
     totalAmount: number;
+    paymentReceived: number;
   } | null>(null);
   const [paymentReceived, setPaymentReceived] = useState<boolean | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -366,6 +367,17 @@ const Orders = () => {
       return;
     }
 
+    // If payment was received at creation, record it as income so balance reflects it once.
+    if (paymentAmountValue > 0) {
+      await supabase.from("finance_entries").insert({
+        type: "income",
+        amount: paymentAmountValue,
+        company_id: useCustomCompany ? null : selectedCompany?.id,
+        related_order_id: orderData.id,
+        comment: `გადახდა მიღებული შეკვეთის შექმნისას`,
+      });
+    }
+
     toast({ title: "Order created successfully" });
     setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "", paymentAmount: "", manualTotal: "", notes: "" });
     setOrderLines([]);
@@ -448,7 +460,7 @@ const Orders = () => {
     // Fetch full order details
     const { data: orderData, error } = await supabase
       .from("orders")
-      .select("id, company_id, total_amount")
+      .select("id, company_id, total_amount, payment_received_amount")
       .eq("id", orderId)
       .single();
 
@@ -461,12 +473,16 @@ const Orders = () => {
       return;
     }
 
+    const alreadyPaid = Number(orderData.payment_received_amount) || 0;
     setSelectedOrderForCompletion({
       id: orderData.id,
       companyId: orderData.company_id,
       totalAmount: Number(orderData.total_amount),
+      paymentReceived: alreadyPaid,
     });
-    setPaymentAmount(String(orderData.total_amount));
+    // Default to remaining amount so prior payments aren't double-counted
+    const remaining = Math.max(0, Number(orderData.total_amount) - alreadyPaid);
+    setPaymentAmount(String(remaining));
     setPaymentReceived(null);
     setPaymentMethod("");
     setShowPaymentDialog(true);
