@@ -50,6 +50,7 @@ const Orders = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [productSearch, setProductSearch] = useState("");
   const [newOrder, setNewOrder] = useState({
     company: "",
     customCompany: "",
