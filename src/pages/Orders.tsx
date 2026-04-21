@@ -69,6 +69,7 @@ const Orders = () => {
     id: string;
     companyId: string | null;
     totalAmount: number;
+    paymentReceived: number;
   } | null>(null);
   const [paymentReceived, setPaymentReceived] = useState<boolean | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -366,6 +367,17 @@ const Orders = () => {
       return;
     }
 
+    // If payment was received at creation, record it as income so balance reflects it once.
+    if (paymentAmountValue > 0) {
+      await supabase.from("finance_entries").insert({
+        type: "income",
+        amount: paymentAmountValue,
+        company_id: useCustomCompany ? null : selectedCompany?.id,
+        related_order_id: orderData.id,
+        comment: `გადახდა მიღებული შეკვეთის შექმნისას`,
+      });
+    }
+
     toast({ title: "Order created successfully" });
     setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "", paymentAmount: "", manualTotal: "", notes: "" });
     setOrderLines([]);
@@ -448,7 +460,7 @@ const Orders = () => {
     // Fetch full order details
     const { data: orderData, error } = await supabase
       .from("orders")
-      .select("id, company_id, total_amount")
+      .select("id, company_id, total_amount, payment_received_amount")
       .eq("id", orderId)
       .single();
 
@@ -461,12 +473,16 @@ const Orders = () => {
       return;
     }
 
+    const alreadyPaid = Number(orderData.payment_received_amount) || 0;
     setSelectedOrderForCompletion({
       id: orderData.id,
       companyId: orderData.company_id,
       totalAmount: Number(orderData.total_amount),
+      paymentReceived: alreadyPaid,
     });
-    setPaymentAmount(String(orderData.total_amount));
+    // Default to remaining amount so prior payments aren't double-counted
+    const remaining = Math.max(0, Number(orderData.total_amount) - alreadyPaid);
+    setPaymentAmount(String(remaining));
     setPaymentReceived(null);
     setPaymentMethod("");
     setShowPaymentDialog(true);
@@ -933,15 +949,20 @@ const Orders = () => {
         }]);
     }
 
-    // Update order with payment information
+    // Update order with payment information.
+    // IMPORTANT: add the new payment to any payment already recorded so we don't overwrite/lose it.
+    const previouslyPaid = selectedOrderForCompletion.paymentReceived || 0;
+    const totalPaid = previouslyPaid + paymentAmountValue;
+    const fullyPaid = totalPaid >= selectedOrderForCompletion.totalAmount;
+
     const { error: orderError } = await supabase
       .from("orders")
       .update({
         status: "completed",
         completed_at: new Date().toISOString(),
-        payment_status: paymentReceived ? "paid" : "unpaid",
-        payment_received_amount: paymentAmountValue,
-        debt_flag: !paymentReceived,
+        payment_status: fullyPaid ? "paid" : (totalPaid > 0 ? "partially_paid" : "unpaid"),
+        payment_received_amount: totalPaid,
+        debt_flag: !fullyPaid,
       })
       .eq("id", selectedOrderForCompletion.id);
 
@@ -954,8 +975,8 @@ const Orders = () => {
       return;
     }
 
-    // Only record income when actual money is received.
-    // Unpaid orders are tracked as debts (debt_flag) and must NOT affect the Current Balance.
+    // Only record income for the NEW money received in this step.
+    // Money paid at order creation already produced its own income entry.
     if (paymentReceived && paymentAmountValue > 0) {
       const { error: financeError } = await supabase
         .from("finance_entries")
@@ -980,7 +1001,7 @@ const Orders = () => {
       title: "Order completed successfully",
       description: paymentReceived 
         ? `Payment of $${paymentAmountValue} recorded. Stock updated.`
-        : `Debt of $${selectedOrderForCompletion.totalAmount} recorded. Stock updated.`
+        : `Debt of $${selectedOrderForCompletion.totalAmount - previouslyPaid} recorded. Stock updated.`
     });
 
     setShowPaymentDialog(false);
