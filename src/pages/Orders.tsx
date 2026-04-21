@@ -949,15 +949,20 @@ const Orders = () => {
         }]);
     }
 
-    // Update order with payment information
+    // Update order with payment information.
+    // IMPORTANT: add the new payment to any payment already recorded so we don't overwrite/lose it.
+    const previouslyPaid = selectedOrderForCompletion.paymentReceived || 0;
+    const totalPaid = previouslyPaid + paymentAmountValue;
+    const fullyPaid = totalPaid >= selectedOrderForCompletion.totalAmount;
+
     const { error: orderError } = await supabase
       .from("orders")
       .update({
         status: "completed",
         completed_at: new Date().toISOString(),
-        payment_status: paymentReceived ? "paid" : "unpaid",
-        payment_received_amount: paymentAmountValue,
-        debt_flag: !paymentReceived,
+        payment_status: fullyPaid ? "paid" : (totalPaid > 0 ? "partially_paid" : "unpaid"),
+        payment_received_amount: totalPaid,
+        debt_flag: !fullyPaid,
       })
       .eq("id", selectedOrderForCompletion.id);
 
@@ -970,8 +975,8 @@ const Orders = () => {
       return;
     }
 
-    // Only record income when actual money is received.
-    // Unpaid orders are tracked as debts (debt_flag) and must NOT affect the Current Balance.
+    // Only record income for the NEW money received in this step.
+    // Money paid at order creation already produced its own income entry.
     if (paymentReceived && paymentAmountValue > 0) {
       const { error: financeError } = await supabase
         .from("finance_entries")
@@ -996,7 +1001,7 @@ const Orders = () => {
       title: "Order completed successfully",
       description: paymentReceived 
         ? `Payment of $${paymentAmountValue} recorded. Stock updated.`
-        : `Debt of $${selectedOrderForCompletion.totalAmount} recorded. Stock updated.`
+        : `Debt of $${selectedOrderForCompletion.totalAmount - previouslyPaid} recorded. Stock updated.`
     });
 
     setShowPaymentDialog(false);
