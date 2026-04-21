@@ -954,9 +954,9 @@ const Orders = () => {
       return;
     }
 
-    // Create finance entry based on payment status
+    // Only record income when actual money is received.
+    // Unpaid orders are tracked as debts (debt_flag) and must NOT affect the Current Balance.
     if (paymentReceived && paymentAmountValue > 0) {
-      // Record income when payment is received
       const { error: financeError } = await supabase
         .from("finance_entries")
         .insert({
@@ -965,25 +965,6 @@ const Orders = () => {
           company_id: selectedOrderForCompletion.companyId,
           related_order_id: selectedOrderForCompletion.id,
           comment: `Payment received via ${paymentMethod} for completed order`,
-        });
-
-      if (financeError) {
-        toast({
-          title: "Order completed but finance entry failed",
-          description: financeError.message,
-          variant: "destructive",
-        });
-      }
-    } else {
-      // Record debt as expense when payment is not received
-      const { error: financeError } = await supabase
-        .from("finance_entries")
-        .insert({
-          type: "expense",
-          amount: selectedOrderForCompletion.totalAmount,
-          company_id: selectedOrderForCompletion.companyId,
-          related_order_id: selectedOrderForCompletion.id,
-          comment: `Unpaid order - pending debt`,
         });
 
       if (financeError) {
