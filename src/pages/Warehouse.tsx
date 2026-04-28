@@ -581,34 +581,14 @@ const Warehouse = () => {
                           <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)} className="gap-1">
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>პროდუქტის წაშლა</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  დარწმუნებული ხართ, რომ გსურთ "{product.name}"-ის სრულად წაშლა სისტემიდან? ეს მოქმედება შეუქცევადია და წაშლის ყველა დაკავშირებულ მონაცემს.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>გაუქმება</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => handleDeleteProduct(product.id, product.name)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  წაშლა
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteProduct(product.id, product.name)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
