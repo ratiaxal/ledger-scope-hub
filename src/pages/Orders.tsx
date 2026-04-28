@@ -193,9 +193,6 @@ const Orders = () => {
       return;
     }
 
-    if (!confirm("Are you sure you want to delete all orders for this company? This action cannot be undone.")) {
-      return;
-    }
 
     setClearing(true);
     try {
@@ -489,9 +486,6 @@ const Orders = () => {
   };
 
   const handleDeleteOrder = async (orderId: string) => {
-    if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
-      return;
-    }
 
     try {
       // 1. Fetch the order status and its lines before deleting

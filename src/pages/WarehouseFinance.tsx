@@ -186,9 +186,6 @@ const WarehouseFinance = () => {
   };
 
   const handleDeleteEntry = async (entryId: string) => {
-    if (!confirm("Are you sure you want to delete this entry?")) {
-      return;
-    }
 
     const { error } = await supabase
       .from("finance_entries")

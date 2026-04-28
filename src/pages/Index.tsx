@@ -219,31 +219,11 @@ const Index = () => {
                 </div>
               </DialogContent>
             </Dialog>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="gap-2" size="sm" disabled={resetting}>
-                  <Trash2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">{resetting ? "იშლება..." : "ყველას წაშლა"}</span>
-                  <span className="sm:hidden">{resetting ? "..." : "წაშლა"}</span>
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>ყველა მონაცემის წაშლა</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    დარწმუნებული ხართ? ეს წაშლის ყველა შეკვეთას, ფინანსურ ჩანაწერს და ინვენტარის ტრანზაქციას. 
-                    გაყიდული პროდუქტები ავტომატურად დაბრუნდება საწყობში თავდაპირველი სახელებით და რაოდენობებით.
-                    ეს მოქმედება შეუქცევადია.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>გაუქმება</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleResetAllData} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    დიახ, წაშალე ყველაფერი
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button variant="destructive" className="gap-2" size="sm" disabled={resetting} onClick={handleResetAllData}>
+              <Trash2 className="h-4 w-4" />
+              <span className="hidden sm:inline">{resetting ? "იშლება..." : "ყველას წაშლა"}</span>
+              <span className="sm:hidden">{resetting ? "..." : "წაშლა"}</span>
+            </Button>
             <Button variant="outline" onClick={handleSignOut} className="gap-2" size="sm">
               <LogOut className="h-4 w-4" />
               გასვლა
@@ -364,27 +344,14 @@ const Index = () => {
                         {company.registration_number && `რეგ: ${company.registration_number}`}
                       </CardDescription>
                     </div>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>კომპანიის წაშლა</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            დარწმუნებული ხართ, რომ გსურთ "{company.name}"-ის წაშლა? ეს მოქმედება შეუქცევადია და წაშლის ყველა დაკავშირებულ მონაცემს.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>გაუქმება</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteCompany(company.id, company.name)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            წაშლა
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleDeleteCompany(company.id, company.name)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
