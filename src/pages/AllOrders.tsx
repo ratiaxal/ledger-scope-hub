@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Building2, Package, Search, Calendar, TrendingUp, FileText } from "lucide-react";
+import { Building2, Package, Search, Calendar, TrendingUp, FileText, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -223,6 +223,12 @@ const AllOrders = () => {
             </h1>
             <p className="text-muted-foreground text-sm">ყველა კომპანიის შეკვეთები და სტატისტიკა</p>
           </div>
+          <Link to="/orders">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              ახალი შეკვეთა
+            </Button>
+          </Link>
         </div>
 
         {/* Summary Cards */}
