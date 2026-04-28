@@ -1144,19 +1144,21 @@ const Orders = () => {
               <Package className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
               შეკვეთების მართვა
             </h1>
-            <p className="text-muted-foreground text-sm">Company ID: {companyId}</p>
+            {companyId && <p className="text-muted-foreground text-sm">Company ID: {companyId}</p>}
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="destructive" 
-              size="sm" 
-              onClick={handleClearAllOrders}
-              disabled={clearing}
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">{clearing ? "იშლება..." : "ყველა შეკვეთის გასუფთავება"}</span>
-              <span className="sm:hidden">{clearing ? "..." : "გასუფთავება"}</span>
-            </Button>
+            {companyId && (
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={handleClearAllOrders}
+                disabled={clearing}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">{clearing ? "იშლება..." : "ყველა შეკვეთის გასუფთავება"}</span>
+                <span className="sm:hidden">{clearing ? "..." : "გასუფთავება"}</span>
+              </Button>
+            )}
             <Button onClick={() => setShowForm(!showForm)} className="gap-2" size="sm">
               <Plus className="h-4 w-4" />
               ახალი შეკვეთა
