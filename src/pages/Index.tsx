@@ -208,15 +208,6 @@ const Index = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="registration">რეგისტრაციის ნომერი</Label>
-                    <Input
-                      id="registration"
-                      value={newCompany.registration_number}
-                      onChange={(e) => setNewCompany({ ...newCompany, registration_number: e.target.value })}
-                      placeholder="123456789"
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <Label htmlFor="identification">საიდენტიფიკაციო ნომერი</Label>
                     <Input
                       id="identification"
