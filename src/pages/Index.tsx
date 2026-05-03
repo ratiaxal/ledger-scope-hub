@@ -389,17 +389,33 @@ const Index = () => {
                         {company.registration_number && `რეგ: ${company.registration_number}`}
                       </CardDescription>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleDeleteCompany(company.id, company.name)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={() => setEditingCompany(company)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeleteCompany(company.id, company.name)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
+                  {company.identification_number && (
+                    <p className="text-sm text-muted-foreground">🆔 {company.identification_number}</p>
+                  )}
+                  {company.address && (
+                    <p className="text-sm text-muted-foreground">📍 {company.address}</p>
+                  )}
                   {company.contact_phone && (
                     <p className="text-sm text-muted-foreground">📞 {company.contact_phone}</p>
                   )}
