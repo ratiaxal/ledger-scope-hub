@@ -372,9 +372,6 @@ const Index = () => {
                         <Building2 className="h-5 w-5 text-primary" />
                         {company.name}
                       </CardTitle>
-                      <CardDescription>
-                        {company.registration_number && `რეგ: ${company.registration_number}`}
-                      </CardDescription>
                     </div>
                     <div className="flex gap-1">
                       <Button
