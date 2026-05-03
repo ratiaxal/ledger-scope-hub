@@ -221,6 +221,24 @@ const Index = () => {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="identification">საიდენტიფიკაციო ნომერი</Label>
+                    <Input
+                      id="identification"
+                      value={newCompany.identification_number}
+                      onChange={(e) => setNewCompany({ ...newCompany, identification_number: e.target.value })}
+                      placeholder="000000000"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">მისამართი</Label>
+                    <Input
+                      id="address"
+                      value={newCompany.address}
+                      onChange={(e) => setNewCompany({ ...newCompany, address: e.target.value })}
+                      placeholder="ქ. თბილისი, ..."
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="phone">საკონტაქტო ტელეფონი</Label>
                     <Input
                       id="phone"
