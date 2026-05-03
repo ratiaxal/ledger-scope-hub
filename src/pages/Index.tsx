@@ -80,6 +80,8 @@ const Index = () => {
     const { error } = await supabase.from("companies").insert([{
       name: newCompany.name,
       registration_number: newCompany.registration_number || null,
+      identification_number: newCompany.identification_number || null,
+      address: newCompany.address || null,
       contact_phone: newCompany.contact_phone || null,
       contact_email: newCompany.contact_email || null,
     }]);
@@ -92,8 +94,28 @@ const Index = () => {
       });
     } else {
       toast({ title: "Company added successfully" });
-      setNewCompany({ name: "", registration_number: "", contact_phone: "", contact_email: "" });
+      setNewCompany({ name: "", registration_number: "", identification_number: "", address: "", contact_phone: "", contact_email: "" });
       setShowAddDialog(false);
+      fetchCompanies();
+    }
+  };
+
+  const handleEditCompany = async () => {
+    if (!editingCompany) return;
+    const { error } = await supabase.from("companies").update({
+      name: editingCompany.name,
+      registration_number: editingCompany.registration_number || null,
+      identification_number: editingCompany.identification_number || null,
+      address: editingCompany.address || null,
+      contact_phone: editingCompany.contact_phone || null,
+      contact_email: editingCompany.contact_email || null,
+    }).eq("id", editingCompany.id);
+
+    if (error) {
+      toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "კომპანია განახლდა" });
+      setEditingCompany(null);
       fetchCompanies();
     }
   };
