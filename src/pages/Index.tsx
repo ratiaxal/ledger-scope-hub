@@ -14,7 +14,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 interface Company {
   id: string;
   name: string;
-  registration_number: string | null;
   identification_number: string | null;
   address: string | null;
   contact_phone: string | null;
@@ -32,7 +31,6 @@ const Index = () => {
   const [resetting, setResetting] = useState(false);
   const [newCompany, setNewCompany] = useState({
     name: "",
-    registration_number: "",
     identification_number: "",
     address: "",
     contact_phone: "",
@@ -79,7 +77,6 @@ const Index = () => {
 
     const { error } = await supabase.from("companies").insert([{
       name: newCompany.name,
-      registration_number: newCompany.registration_number || null,
       identification_number: newCompany.identification_number || null,
       address: newCompany.address || null,
       contact_phone: newCompany.contact_phone || null,
@@ -94,7 +91,7 @@ const Index = () => {
       });
     } else {
       toast({ title: "Company added successfully" });
-      setNewCompany({ name: "", registration_number: "", identification_number: "", address: "", contact_phone: "", contact_email: "" });
+      setNewCompany({ name: "", identification_number: "", address: "", contact_phone: "", contact_email: "" });
       setShowAddDialog(false);
       fetchCompanies();
     }
@@ -104,7 +101,6 @@ const Index = () => {
     if (!editingCompany) return;
     const { error } = await supabase.from("companies").update({
       name: editingCompany.name,
-      registration_number: editingCompany.registration_number || null,
       identification_number: editingCompany.identification_number || null,
       address: editingCompany.address || null,
       contact_phone: editingCompany.contact_phone || null,
@@ -209,15 +205,6 @@ const Index = () => {
                       value={newCompany.name}
                       onChange={(e) => setNewCompany({ ...newCompany, name: e.target.value })}
                       placeholder="Acme Corp"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="registration">რეგისტრაციის ნომერი</Label>
-                    <Input
-                      id="registration"
-                      value={newCompany.registration_number}
-                      onChange={(e) => setNewCompany({ ...newCompany, registration_number: e.target.value })}
-                      placeholder="123456789"
                     />
                   </div>
                   <div className="space-y-2">
@@ -385,9 +372,6 @@ const Index = () => {
                         <Building2 className="h-5 w-5 text-primary" />
                         {company.name}
                       </CardTitle>
-                      <CardDescription>
-                        {company.registration_number && `რეგ: ${company.registration_number}`}
-                      </CardDescription>
                     </div>
                     <div className="flex gap-1">
                       <Button
@@ -453,10 +437,6 @@ const Index = () => {
                 <div className="space-y-2">
                   <Label>კომპანიის სახელი *</Label>
                   <Input value={editingCompany.name} onChange={(e) => setEditingCompany({ ...editingCompany, name: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>რეგისტრაციის ნომერი</Label>
-                  <Input value={editingCompany.registration_number || ""} onChange={(e) => setEditingCompany({ ...editingCompany, registration_number: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>საიდენტიფიკაციო ნომერი</Label>
