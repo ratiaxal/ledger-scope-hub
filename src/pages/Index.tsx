@@ -91,7 +91,7 @@ const Index = () => {
       });
     } else {
       toast({ title: "Company added successfully" });
-      setNewCompany({ name: "", registration_number: "", identification_number: "", address: "", contact_phone: "", contact_email: "" });
+      setNewCompany({ name: "", identification_number: "", address: "", contact_phone: "", contact_email: "" });
       setShowAddDialog(false);
       fetchCompanies();
     }
