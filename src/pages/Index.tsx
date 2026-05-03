@@ -441,6 +441,47 @@ const Index = () => {
             ))}
           </div>
         )}
+
+        <Dialog open={!!editingCompany} onOpenChange={(open) => !open && setEditingCompany(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>კომპანიის რედაქტირება</DialogTitle>
+              <DialogDescription>შეცვალეთ კომპანიის ინფორმაცია</DialogDescription>
+            </DialogHeader>
+            {editingCompany && (
+              <div className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>კომპანიის სახელი *</Label>
+                  <Input value={editingCompany.name} onChange={(e) => setEditingCompany({ ...editingCompany, name: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>რეგისტრაციის ნომერი</Label>
+                  <Input value={editingCompany.registration_number || ""} onChange={(e) => setEditingCompany({ ...editingCompany, registration_number: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>საიდენტიფიკაციო ნომერი</Label>
+                  <Input value={editingCompany.identification_number || ""} onChange={(e) => setEditingCompany({ ...editingCompany, identification_number: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>მისამართი</Label>
+                  <Input value={editingCompany.address || ""} onChange={(e) => setEditingCompany({ ...editingCompany, address: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>საკონტაქტო ტელეფონი</Label>
+                  <Input value={editingCompany.contact_phone || ""} onChange={(e) => setEditingCompany({ ...editingCompany, contact_phone: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>საკონტაქტო ელ-ფოსტა</Label>
+                  <Input type="email" value={editingCompany.contact_email || ""} onChange={(e) => setEditingCompany({ ...editingCompany, contact_email: e.target.value })} />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleEditCompany} className="flex-1">შენახვა</Button>
+                  <Button variant="outline" onClick={() => setEditingCompany(null)}>გაუქმება</Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
