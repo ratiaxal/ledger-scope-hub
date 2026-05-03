@@ -77,7 +77,6 @@ const Index = () => {
 
     const { error } = await supabase.from("companies").insert([{
       name: newCompany.name,
-      registration_number: newCompany.registration_number || null,
       identification_number: newCompany.identification_number || null,
       address: newCompany.address || null,
       contact_phone: newCompany.contact_phone || null,
