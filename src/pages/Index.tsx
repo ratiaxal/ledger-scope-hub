@@ -439,10 +439,6 @@ const Index = () => {
                   <Input value={editingCompany.name} onChange={(e) => setEditingCompany({ ...editingCompany, name: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>რეგისტრაციის ნომერი</Label>
-                  <Input value={editingCompany.registration_number || ""} onChange={(e) => setEditingCompany({ ...editingCompany, registration_number: e.target.value })} />
-                </div>
-                <div className="space-y-2">
                   <Label>საიდენტიფიკაციო ნომერი</Label>
                   <Input value={editingCompany.identification_number || ""} onChange={(e) => setEditingCompany({ ...editingCompany, identification_number: e.target.value })} />
                 </div>
