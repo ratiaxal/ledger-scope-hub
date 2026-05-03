@@ -15,6 +15,8 @@ interface Company {
   id: string;
   name: string;
   registration_number: string | null;
+  identification_number: string | null;
+  address: string | null;
   contact_phone: string | null;
   contact_email: string | null;
   created_at: string;
