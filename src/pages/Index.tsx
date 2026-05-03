@@ -28,10 +28,13 @@ const Index = () => {
   const { toast } = useToast();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [resetting, setResetting] = useState(false);
   const [newCompany, setNewCompany] = useState({
     name: "",
     registration_number: "",
+    identification_number: "",
+    address: "",
     contact_phone: "",
     contact_email: "",
   });
