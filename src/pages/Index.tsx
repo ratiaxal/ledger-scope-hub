@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Plus, LogOut, DollarSign, Package, FileText, Trash2, TrendingUp } from "lucide-react";
+import { Building2, Plus, LogOut, DollarSign, Package, FileText, Trash2, TrendingUp, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -15,6 +15,8 @@ interface Company {
   id: string;
   name: string;
   registration_number: string | null;
+  identification_number: string | null;
+  address: string | null;
   contact_phone: string | null;
   contact_email: string | null;
   created_at: string;
@@ -26,10 +28,13 @@ const Index = () => {
   const { toast } = useToast();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [resetting, setResetting] = useState(false);
   const [newCompany, setNewCompany] = useState({
     name: "",
     registration_number: "",
+    identification_number: "",
+    address: "",
     contact_phone: "",
     contact_email: "",
   });
@@ -75,6 +80,8 @@ const Index = () => {
     const { error } = await supabase.from("companies").insert([{
       name: newCompany.name,
       registration_number: newCompany.registration_number || null,
+      identification_number: newCompany.identification_number || null,
+      address: newCompany.address || null,
       contact_phone: newCompany.contact_phone || null,
       contact_email: newCompany.contact_email || null,
     }]);
@@ -87,8 +94,28 @@ const Index = () => {
       });
     } else {
       toast({ title: "Company added successfully" });
-      setNewCompany({ name: "", registration_number: "", contact_phone: "", contact_email: "" });
+      setNewCompany({ name: "", registration_number: "", identification_number: "", address: "", contact_phone: "", contact_email: "" });
       setShowAddDialog(false);
+      fetchCompanies();
+    }
+  };
+
+  const handleEditCompany = async () => {
+    if (!editingCompany) return;
+    const { error } = await supabase.from("companies").update({
+      name: editingCompany.name,
+      registration_number: editingCompany.registration_number || null,
+      identification_number: editingCompany.identification_number || null,
+      address: editingCompany.address || null,
+      contact_phone: editingCompany.contact_phone || null,
+      contact_email: editingCompany.contact_email || null,
+    }).eq("id", editingCompany.id);
+
+    if (error) {
+      toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "კომპანია განახლდა" });
+      setEditingCompany(null);
       fetchCompanies();
     }
   };
@@ -191,6 +218,24 @@ const Index = () => {
                       value={newCompany.registration_number}
                       onChange={(e) => setNewCompany({ ...newCompany, registration_number: e.target.value })}
                       placeholder="123456789"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="identification">საიდენტიფიკაციო ნომერი</Label>
+                    <Input
+                      id="identification"
+                      value={newCompany.identification_number}
+                      onChange={(e) => setNewCompany({ ...newCompany, identification_number: e.target.value })}
+                      placeholder="000000000"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">მისამართი</Label>
+                    <Input
+                      id="address"
+                      value={newCompany.address}
+                      onChange={(e) => setNewCompany({ ...newCompany, address: e.target.value })}
+                      placeholder="ქ. თბილისი, ..."
                     />
                   </div>
                   <div className="space-y-2">
@@ -344,17 +389,33 @@ const Index = () => {
                         {company.registration_number && `რეგ: ${company.registration_number}`}
                       </CardDescription>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleDeleteCompany(company.id, company.name)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={() => setEditingCompany(company)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeleteCompany(company.id, company.name)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
+                  {company.identification_number && (
+                    <p className="text-sm text-muted-foreground">🆔 {company.identification_number}</p>
+                  )}
+                  {company.address && (
+                    <p className="text-sm text-muted-foreground">📍 {company.address}</p>
+                  )}
                   {company.contact_phone && (
                     <p className="text-sm text-muted-foreground">📞 {company.contact_phone}</p>
                   )}
@@ -380,6 +441,47 @@ const Index = () => {
             ))}
           </div>
         )}
+
+        <Dialog open={!!editingCompany} onOpenChange={(open) => !open && setEditingCompany(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>კომპანიის რედაქტირება</DialogTitle>
+              <DialogDescription>შეცვალეთ კომპანიის ინფორმაცია</DialogDescription>
+            </DialogHeader>
+            {editingCompany && (
+              <div className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>კომპანიის სახელი *</Label>
+                  <Input value={editingCompany.name} onChange={(e) => setEditingCompany({ ...editingCompany, name: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>რეგისტრაციის ნომერი</Label>
+                  <Input value={editingCompany.registration_number || ""} onChange={(e) => setEditingCompany({ ...editingCompany, registration_number: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>საიდენტიფიკაციო ნომერი</Label>
+                  <Input value={editingCompany.identification_number || ""} onChange={(e) => setEditingCompany({ ...editingCompany, identification_number: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>მისამართი</Label>
+                  <Input value={editingCompany.address || ""} onChange={(e) => setEditingCompany({ ...editingCompany, address: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>საკონტაქტო ტელეფონი</Label>
+                  <Input value={editingCompany.contact_phone || ""} onChange={(e) => setEditingCompany({ ...editingCompany, contact_phone: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>საკონტაქტო ელ-ფოსტა</Label>
+                  <Input type="email" value={editingCompany.contact_email || ""} onChange={(e) => setEditingCompany({ ...editingCompany, contact_email: e.target.value })} />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleEditCompany} className="flex-1">შენახვა</Button>
+                  <Button variant="outline" onClick={() => setEditingCompany(null)}>გაუქმება</Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
