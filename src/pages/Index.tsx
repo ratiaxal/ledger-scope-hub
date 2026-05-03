@@ -101,7 +101,6 @@ const Index = () => {
     if (!editingCompany) return;
     const { error } = await supabase.from("companies").update({
       name: editingCompany.name,
-      registration_number: editingCompany.registration_number || null,
       identification_number: editingCompany.identification_number || null,
       address: editingCompany.address || null,
       contact_phone: editingCompany.contact_phone || null,
