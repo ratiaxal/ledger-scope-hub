@@ -31,7 +31,6 @@ const Index = () => {
   const [resetting, setResetting] = useState(false);
   const [newCompany, setNewCompany] = useState({
     name: "",
-    registration_number: "",
     identification_number: "",
     address: "",
     contact_phone: "",
