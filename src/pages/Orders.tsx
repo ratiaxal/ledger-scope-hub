@@ -338,6 +338,24 @@ const Orders = () => {
       return;
     }
 
+    // Validate stock availability
+    const stockIssues: string[] = [];
+    for (const line of orderLines) {
+      const product = products.find(p => p.id === line.product_id);
+      const stock = product?.current_stock ?? 0;
+      if (line.quantity <= 0 || stock <= 0 || line.quantity > stock) {
+        stockIssues.push(`${line.product_name} (მარაგი: ${stock})`);
+      }
+    }
+    if (stockIssues.length > 0) {
+      toast({
+        title: "მარაგი არ არის საკმარისი",
+        description: `შეკვეთა ვერ შეიქმნება: ${stockIssues.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const companyName = useCustomCompany ? newOrder.customCompany : newOrder.company;
     const selectedCompany = companies.find(c => c.name === newOrder.company);
     const paymentAmountValue = parseFloat(newOrder.paymentAmount) || 0;
