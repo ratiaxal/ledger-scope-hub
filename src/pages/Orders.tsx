@@ -95,12 +95,40 @@ const Orders = () => {
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState({ total_amount: "", notes: "", payment_received_amount: "" });
   const [editOrderLines, setEditOrderLines] = useState<{ id: string; product_name: string; quantity: number; original_quantity: number }[]>([]);
+  const [companyNote, setCompanyNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     fetchProducts();
     fetchOrders();
     fetchCompanies();
-  }, []);
+    if (companyId) fetchCompanyNote();
+  }, [companyId]);
+
+  const fetchCompanyNote = async () => {
+    if (!companyId) return;
+    const { data } = await supabase
+      .from("companies")
+      .select("orders_note")
+      .eq("id", companyId)
+      .maybeSingle();
+    setCompanyNote((data as any)?.orders_note || "");
+  };
+
+  const handleSaveCompanyNote = async () => {
+    if (!companyId) return;
+    setSavingNote(true);
+    const { error } = await supabase
+      .from("companies")
+      .update({ orders_note: companyNote } as any)
+      .eq("id", companyId);
+    setSavingNote(false);
+    if (error) {
+      toast({ title: "შენახვა ვერ მოხერხდა", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "კომენტარი შენახულია" });
+    }
+  };
 
   const fetchCompanies = async () => {
     const { data, error } = await supabase
