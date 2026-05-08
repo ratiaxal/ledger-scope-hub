@@ -294,9 +294,20 @@ const Orders = () => {
   };
 
   const handleUpdateQuantity = (productId: string, quantity: number) => {
-    setOrderLines(orderLines.map(line => 
-      line.product_id === productId 
-        ? { ...line, quantity, line_total: quantity * line.unit_price }
+    const product = products.find(p => p.id === productId);
+    const stock = product?.current_stock ?? 0;
+    let finalQty = quantity;
+    if (quantity > stock) {
+      finalQty = stock;
+      toast({
+        title: "მარაგი არ არის საკმარისი",
+        description: `${product?.name ?? "პროდუქტი"} — საწყობში დარჩენილია მხოლოდ ${stock}`,
+        variant: "destructive",
+      });
+    }
+    setOrderLines(orderLines.map(line =>
+      line.product_id === productId
+        ? { ...line, quantity: finalQty, line_total: finalQty * line.unit_price }
         : line
     ));
   };
