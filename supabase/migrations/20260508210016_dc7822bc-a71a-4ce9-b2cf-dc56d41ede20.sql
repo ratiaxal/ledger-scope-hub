@@ -1,0 +1,1 @@
+ALTER TABLE public.companies ADD COLUMN orders_note text;

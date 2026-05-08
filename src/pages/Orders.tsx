@@ -95,12 +95,40 @@ const Orders = () => {
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState({ total_amount: "", notes: "", payment_received_amount: "" });
   const [editOrderLines, setEditOrderLines] = useState<{ id: string; product_name: string; quantity: number; original_quantity: number }[]>([]);
+  const [companyNote, setCompanyNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     fetchProducts();
     fetchOrders();
     fetchCompanies();
-  }, []);
+    if (companyId) fetchCompanyNote();
+  }, [companyId]);
+
+  const fetchCompanyNote = async () => {
+    if (!companyId) return;
+    const { data } = await supabase
+      .from("companies")
+      .select("orders_note")
+      .eq("id", companyId)
+      .maybeSingle();
+    setCompanyNote((data as any)?.orders_note || "");
+  };
+
+  const handleSaveCompanyNote = async () => {
+    if (!companyId) return;
+    setSavingNote(true);
+    const { error } = await supabase
+      .from("companies")
+      .update({ orders_note: companyNote } as any)
+      .eq("id", companyId);
+    setSavingNote(false);
+    if (error) {
+      toast({ title: "შენახვა ვერ მოხერხდა", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "კომენტარი შენახულია" });
+    }
+  };
 
   const fetchCompanies = async () => {
     const { data, error } = await supabase
@@ -1202,6 +1230,29 @@ const Orders = () => {
             </Button>
           </div>
         </div>
+
+        {companyId && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Pencil className="h-4 w-4" /> კომენტარი (კომპანიის შესახებ)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Textarea
+                placeholder="ჩაწერე შენიშვნა ამ კომპანიის შესახებ..."
+                value={companyNote}
+                onChange={(e) => setCompanyNote(e.target.value)}
+                rows={3}
+              />
+              <div className="flex justify-end">
+                <Button size="sm" onClick={handleSaveCompanyNote} disabled={savingNote}>
+                  {savingNote ? "ინახება..." : "შენახვა"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
           <Card>

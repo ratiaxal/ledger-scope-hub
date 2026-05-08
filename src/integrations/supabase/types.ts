@@ -23,6 +23,7 @@ export type Database = {
           id: string
           identification_number: string | null
           name: string
+          orders_note: string | null
           registration_number: string | null
           updated_at: string
         }
@@ -34,6 +35,7 @@ export type Database = {
           id?: string
           identification_number?: string | null
           name: string
+          orders_note?: string | null
           registration_number?: string | null
           updated_at?: string
         }
@@ -45,6 +47,7 @@ export type Database = {
           id?: string
           identification_number?: string | null
           name?: string
+          orders_note?: string | null
           registration_number?: string | null
           updated_at?: string
         }
