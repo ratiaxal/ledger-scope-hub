@@ -241,6 +241,7 @@ const Orders = () => {
 
     const newLines: OrderLine[] = [];
     const alreadyAdded: string[] = [];
+    const outOfStock: string[] = [];
 
     selectedProducts.forEach(productId => {
       const product = products.find(p => p.id === productId);
@@ -252,6 +253,11 @@ const Orders = () => {
         return;
       }
 
+      if ((product.current_stock ?? 0) <= 0) {
+        outOfStock.push(product.name);
+        return;
+      }
+
       newLines.push({
         product_id: product.id,
         product_name: product.name,
@@ -260,6 +266,14 @@ const Orders = () => {
         line_total: 0,
       });
     });
+
+    if (outOfStock.length > 0) {
+      toast({
+        title: "მარაგი არ არის",
+        description: `საწყობში არ არის: ${outOfStock.join(", ")}`,
+        variant: "destructive",
+      });
+    }
 
     if (newLines.length > 0) {
       setOrderLines([...orderLines, ...newLines]);
@@ -280,9 +294,20 @@ const Orders = () => {
   };
 
   const handleUpdateQuantity = (productId: string, quantity: number) => {
-    setOrderLines(orderLines.map(line => 
-      line.product_id === productId 
-        ? { ...line, quantity, line_total: quantity * line.unit_price }
+    const product = products.find(p => p.id === productId);
+    const stock = product?.current_stock ?? 0;
+    let finalQty = quantity;
+    if (quantity > stock) {
+      finalQty = stock;
+      toast({
+        title: "მარაგი არ არის საკმარისი",
+        description: `${product?.name ?? "პროდუქტი"} — საწყობში დარჩენილია მხოლოდ ${stock}`,
+        variant: "destructive",
+      });
+    }
+    setOrderLines(orderLines.map(line =>
+      line.product_id === productId
+        ? { ...line, quantity: finalQty, line_total: finalQty * line.unit_price }
         : line
     ));
   };
@@ -308,6 +333,24 @@ const Orders = () => {
       toast({
         title: "Missing information",
         description: "Please select a company and add at least one product",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate stock availability
+    const stockIssues: string[] = [];
+    for (const line of orderLines) {
+      const product = products.find(p => p.id === line.product_id);
+      const stock = product?.current_stock ?? 0;
+      if (line.quantity <= 0 || stock <= 0 || line.quantity > stock) {
+        stockIssues.push(`${line.product_name} (მარაგი: ${stock})`);
+      }
+    }
+    if (stockIssues.length > 0) {
+      toast({
+        title: "მარაგი არ არის საკმარისი",
+        description: `შეკვეთა ვერ შეიქმნება: ${stockIssues.join(", ")}`,
         variant: "destructive",
       });
       return;
