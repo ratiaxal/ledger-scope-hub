@@ -241,6 +241,7 @@ const Orders = () => {
 
     const newLines: OrderLine[] = [];
     const alreadyAdded: string[] = [];
+    const outOfStock: string[] = [];
 
     selectedProducts.forEach(productId => {
       const product = products.find(p => p.id === productId);
@@ -252,6 +253,11 @@ const Orders = () => {
         return;
       }
 
+      if ((product.current_stock ?? 0) <= 0) {
+        outOfStock.push(product.name);
+        return;
+      }
+
       newLines.push({
         product_id: product.id,
         product_name: product.name,
@@ -260,6 +266,14 @@ const Orders = () => {
         line_total: 0,
       });
     });
+
+    if (outOfStock.length > 0) {
+      toast({
+        title: "მარაგი არ არის",
+        description: `საწყობში არ არის: ${outOfStock.join(", ")}`,
+        variant: "destructive",
+      });
+    }
 
     if (newLines.length > 0) {
       setOrderLines([...orderLines, ...newLines]);
