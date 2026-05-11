@@ -1021,9 +1021,7 @@ const OverallFinance = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className={`text-xl font-bold ${
-                        entry.type === "income" ? "text-success" : 
-                        entry.related_order_id ? "text-amber-500" : 
-                        "text-destructive"
+                        entry.type === "income" ? "text-success" : "text-destructive"
                       }`}>
                         {entry.type === "income" ? "+" : "-"}${entry.amount.toLocaleString()}
                       </div>
