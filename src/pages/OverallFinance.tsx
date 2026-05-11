@@ -1002,14 +1002,10 @@ const OverallFinance = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <DollarSign className={`h-4 w-4 ${
-                          entry.type === "income" ? "text-success" : 
-                          entry.related_order_id ? "text-amber-500" : 
-                          "text-destructive"
+                          entry.type === "income" ? "text-success" : "text-destructive"
                         }`} />
                         <span className="font-medium">
-                          {entry.type === "income" ? "შემოსავალი" : 
-                           entry.related_order_id ? "გადაუხდელი შეკვეთა (ვალი)" : 
-                           "ხარჯი"}
+                          {entry.type === "income" ? "შემოსავალი" : "ხარჯი"}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
@@ -1025,9 +1021,7 @@ const OverallFinance = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className={`text-xl font-bold ${
-                        entry.type === "income" ? "text-success" : 
-                        entry.related_order_id ? "text-amber-500" : 
-                        "text-destructive"
+                        entry.type === "income" ? "text-success" : "text-destructive"
                       }`}>
                         {entry.type === "income" ? "+" : "-"}${entry.amount.toLocaleString()}
                       </div>
