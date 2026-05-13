@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Building2, Plus, TrendingUp, TrendingDown, DollarSign, Calendar, Trash2, ArrowDownToLine, Pencil } from "lucide-react";
+import { Building2, Plus, TrendingUp, TrendingDown, DollarSign, Calendar, Trash2, ArrowDownToLine, Pencil, Search } from "lucide-react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -75,6 +75,7 @@ const Finance = () => {
   const [showEditEntryDialog, setShowEditEntryDialog] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FinanceEntry | null>(null);
   const [editEntry, setEditEntry] = useState({ amount: "", type: "income" as "income" | "expense", comment: "" });
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -250,6 +251,14 @@ const Finance = () => {
   const totalDebt = debtEntries.reduce((acc, entry) => {
     return entry.type === "expense" ? acc + entry.amount : acc - entry.amount;
   }, 0);
+
+  // Filter entries by search query (expense only when searching)
+  const filteredEntries = searchQuery.trim()
+    ? entries.filter(e =>
+        e.type === "expense" &&
+        e.comment?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : entries;
 
   const handleAddEntry = async () => {
     if (!newEntry.amount || !user) return;
@@ -825,50 +834,61 @@ const Finance = () => {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>ტრანზაქციების ისტორია</CardTitle>
-                <CardDescription>ყველა ფინანსური ჩანაწერი ამ კომპანიისთვის</CardDescription>
-              </div>
-              {entries.length > 0 && (
-                <div className="flex gap-2">
-                  {selectedEntries.size > 0 && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>ტრანზაქციების ისტორია</CardTitle>
+                  <CardDescription>ყველა ფინანსური ჩანაწერი ამ კომპანიისთვის</CardDescription>
+                </div>
+                {entries.length > 0 && (
+                  <div className="flex gap-2">
+                    {selectedEntries.size > 0 && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => initiateDelete("selected")}
+                        className="gap-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        არჩეულის წაშლა ({selectedEntries.size})
+                      </Button>
+                    )}
                     <Button
-                      variant="destructive"
+                      variant="outline"
                       size="sm"
-                      onClick={() => initiateDelete("selected")}
-                      className="gap-2"
+                      onClick={() => initiateDelete("all")}
+                      className="gap-2 text-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
-                      არჩეულის წაშლა ({selectedEntries.size})
+                      ყველას წაშლა
                     </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => initiateDelete("all")}
-                    className="gap-2 text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    ყველას წაშლა
-                  </Button>
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="ძებნა გატანილი თანხების კომენტარით..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            {entries.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">ჯერ არ არის ჩანაწერები</p>
+            {filteredEntries.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">{searchQuery.trim() ? "შედეგები ვერ მოიძებნა" : "ჯერ არ არის ჩანაწერები"}</p>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b">
                   <Checkbox
-                    checked={selectedEntries.size === entries.length}
+                    checked={selectedEntries.size === filteredEntries.length}
                     onCheckedChange={toggleSelectAll}
                   />
                   <span className="text-sm text-muted-foreground">ყველას არჩევა</span>
                 </div>
-                {entries.map((entry) => (
+                {filteredEntries.map((entry) => (
                   <div
                     key={entry.id}
                     className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
