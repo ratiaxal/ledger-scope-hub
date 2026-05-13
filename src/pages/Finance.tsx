@@ -252,6 +252,14 @@ const Finance = () => {
     return entry.type === "expense" ? acc + entry.amount : acc - entry.amount;
   }, 0);
 
+  // Filter entries by search query (expense only when searching)
+  const filteredEntries = searchQuery.trim()
+    ? entries.filter(e =>
+        e.type === "expense" &&
+        e.comment?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : entries;
+
   const handleAddEntry = async () => {
     if (!newEntry.amount || !user) return;
 
