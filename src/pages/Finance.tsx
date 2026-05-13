@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Building2, Plus, TrendingUp, TrendingDown, DollarSign, Calendar, Trash2, ArrowDownToLine, Pencil } from "lucide-react";
+import { Building2, Plus, TrendingUp, TrendingDown, DollarSign, Calendar, Trash2, ArrowDownToLine, Pencil, Search } from "lucide-react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -75,6 +75,7 @@ const Finance = () => {
   const [showEditEntryDialog, setShowEditEntryDialog] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FinanceEntry | null>(null);
   const [editEntry, setEditEntry] = useState({ amount: "", type: "income" as "income" | "expense", comment: "" });
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) {
