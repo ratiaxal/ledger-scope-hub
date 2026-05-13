@@ -312,6 +312,14 @@ const OverallFinance = () => {
 
   const totalDebt = debtsByCompany.reduce((acc, d) => acc + d.totalDebt, 0);
 
+  // Filter entries by search query (expense only when searching)
+  const filteredEntries = searchQuery.trim()
+    ? entries.filter(e =>
+        e.type === "expense" &&
+        e.comment?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : entries;
+
   // Get available months and years from entries
   const availableMonths = Array.from(new Set(
     entries.map(e => new Date(e.created_at).toISOString().slice(0, 7))
