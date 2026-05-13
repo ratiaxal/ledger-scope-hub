@@ -54,6 +54,7 @@ const OverallFinance = () => {
   const [debtsByCompany, setDebtsByCompany] = useState<{ companyName: string; companyId: string | null; totalDebt: number; orderCount: number }[]>([]);
   const [showAdjustDialog, setShowAdjustDialog] = useState(false);
   const [adjustAmount, setAdjustAmount] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) {
