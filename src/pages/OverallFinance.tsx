@@ -959,47 +959,58 @@ const OverallFinance = () => {
         {/* Transaction History */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>ყველა ტრანზაქცია</CardTitle>
-                <CardDescription>სრული ფინანსური ისტორია ყველა კომპანიაში</CardDescription>
-              </div>
-              {entries.length > 0 && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => initiateDelete("selected")}
-                    disabled={selectedEntries.size === 0}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    არჩეულის წაშლა ({selectedEntries.size})
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => initiateDelete("all")}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    ყველას წაშლა
-                  </Button>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>ყველა ტრანზაქცია</CardTitle>
+                  <CardDescription>სრული ფინანსური ისტორია ყველა კომპანიაში</CardDescription>
                 </div>
-              )}
+                {entries.length > 0 && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => initiateDelete("selected")}
+                      disabled={selectedEntries.size === 0}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      არჩეულის წაშლა ({selectedEntries.size})
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => initiateDelete("all")}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      ყველას წაშლა
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="ძებნა გატანილი თანხების კომენტარით..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            {entries.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">ჯერ არ არის ტრანზაქციები</p>
+            {filteredEntries.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">{searchQuery.trim() ? "შედეგები ვერ მოიძებნა" : "ჯერ არ არის ტრანზაქციები"}</p>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b">
                   <Checkbox
-                    checked={selectedEntries.size === entries.length && entries.length > 0}
+                    checked={selectedEntries.size === filteredEntries.length && filteredEntries.length > 0}
                     onCheckedChange={toggleSelectAll}
                   />
                   <span className="text-sm font-medium">ყველას არჩევა</span>
                 </div>
-                {entries.map((entry) => (
+                {filteredEntries.map((entry) => (
                   <div
                     key={entry.id}
                     className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
