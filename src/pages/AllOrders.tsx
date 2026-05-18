@@ -2,7 +2,10 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Building2, Package, Search, Calendar, TrendingUp, FileText, Plus } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Building2, Package, Search, Calendar, TrendingUp, FileText, Plus, Check, DollarSign } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +43,124 @@ const AllOrders = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [productStats, setProductStats] = useState<ProductStats[]>([]);
   const [companyStats, setCompanyStats] = useState<CompanyStats[]>([]);
+
+  // Order completion dialog state
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<{
+    id: string;
+    companyId: string | null;
+    totalAmount: number;
+    paymentReceived: number;
+  } | null>(null);
+  const [paymentReceived, setPaymentReceived] = useState<boolean | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+
+  const handleInitiateOrderCompletion = async (orderId: string) => {
+    const { data: orderData, error } = await supabase
+      .from("orders")
+      .select("id, company_id, total_amount, payment_received_amount")
+      .eq("id", orderId)
+      .single();
+
+    if (error || !orderData) {
+      toast({ title: "Error loading order details", description: error?.message, variant: "destructive" });
+      return;
+    }
+
+    const alreadyPaid = Number(orderData.payment_received_amount) || 0;
+    setSelectedOrderForCompletion({
+      id: orderData.id,
+      companyId: orderData.company_id,
+      totalAmount: Number(orderData.total_amount),
+      paymentReceived: alreadyPaid,
+    });
+    const remaining = Math.max(0, Number(orderData.total_amount) - alreadyPaid);
+    setPaymentAmount(String(remaining));
+    setPaymentReceived(null);
+    setPaymentMethod("");
+    setShowPaymentDialog(true);
+  };
+
+  const handleConfirmOrderCompletion = async () => {
+    if (!selectedOrderForCompletion) return;
+    if (paymentReceived === null) {
+      toast({ title: "აირჩიეთ გადახდის სტატუსი", variant: "destructive" });
+      return;
+    }
+    if (paymentReceived && (!paymentAmount || !paymentMethod)) {
+      toast({ title: "შეიყვანეთ თანხა და გადახდის მეთოდი", variant: "destructive" });
+      return;
+    }
+
+    const paymentAmountValue = paymentReceived ? parseFloat(paymentAmount) : 0;
+
+    const { data: orderLinesData } = await supabase
+      .from("order_lines")
+      .select("product_id, quantity")
+      .eq("order_id", selectedOrderForCompletion.id);
+
+    for (const line of orderLinesData || []) {
+      const { data: productData } = await supabase
+        .from("products")
+        .select("current_stock")
+        .eq("id", line.product_id)
+        .single();
+      if (!productData) continue;
+      await supabase
+        .from("products")
+        .update({ current_stock: productData.current_stock - line.quantity })
+        .eq("id", line.product_id);
+      await supabase.from("inventory_transactions").insert([{
+        product_id: line.product_id,
+        change_quantity: -line.quantity,
+        reason: "order",
+        related_order_id: selectedOrderForCompletion.id,
+        comment: "Stock deducted for completed order",
+      }]);
+    }
+
+    const previouslyPaid = selectedOrderForCompletion.paymentReceived || 0;
+    const totalPaid = previouslyPaid + paymentAmountValue;
+    const fullyPaid = totalPaid >= selectedOrderForCompletion.totalAmount;
+
+    const { error: orderError } = await supabase
+      .from("orders")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        payment_status: fullyPaid ? "paid" : (totalPaid > 0 ? "partially_paid" : "unpaid"),
+        payment_received_amount: totalPaid,
+        debt_flag: !fullyPaid,
+      })
+      .eq("id", selectedOrderForCompletion.id);
+
+    if (orderError) {
+      toast({ title: "შეცდომა შეკვეთის დასრულებისას", description: orderError.message, variant: "destructive" });
+      return;
+    }
+
+    if (paymentReceived && paymentAmountValue > 0) {
+      await supabase.from("finance_entries").insert({
+        type: "income",
+        amount: paymentAmountValue,
+        company_id: selectedOrderForCompletion.companyId,
+        related_order_id: selectedOrderForCompletion.id,
+        comment: `Payment received via ${paymentMethod} for completed order`,
+      });
+    }
+
+    toast({ title: "შეკვეთა წარმატებით დასრულდა" });
+    setShowPaymentDialog(false);
+    setSelectedOrderForCompletion(null);
+    setPaymentReceived(null);
+    setPaymentAmount("");
+    setPaymentMethod("");
+    fetchOrders();
+    fetchProductStats();
+    fetchCompanyStats();
+  };
+
 
   useEffect(() => {
     if (user) {
@@ -378,9 +499,17 @@ const AllOrders = () => {
                         {order.created_at}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold">${order.total_amount.toLocaleString()}</div>
+                    <div className="text-right space-y-2">
+                      <div className="text-2xl font-bold">₾{order.total_amount.toLocaleString()}</div>
                       <div className="text-sm text-muted-foreground">რაოდენობა: {order.total_quantity}</div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleInitiateOrderCompletion(order.id)}
+                        className="gap-2"
+                      >
+                        <Check className="h-4 w-4" />
+                        შეკვეთის დასრულება
+                      </Button>
                     </div>
                   </div>
                 ))
@@ -442,6 +571,69 @@ const AllOrders = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>შეკვეთის დასრულება — გადახდის დადასტურება</DialogTitle>
+            <DialogDescription>მიღებულია თუ არა გადახდა ამ შეკვეთისთვის?</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>გადახდის სტატუსი</Label>
+              <div className="flex gap-3">
+                <Button type="button" variant={paymentReceived === true ? "default" : "outline"} onClick={() => setPaymentReceived(true)} className="flex-1">
+                  <Check className="h-4 w-4 mr-2" />
+                  გადახდილია
+                </Button>
+                <Button type="button" variant={paymentReceived === false ? "default" : "outline"} onClick={() => setPaymentReceived(false)} className="flex-1">
+                  გადაუხდელია
+                </Button>
+              </div>
+            </div>
+
+            {paymentReceived === true && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentAmount">გადახდის თანხა (₾)</Label>
+                  <Input id="paymentAmount" type="number" min="0" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentMethod">გადახდის მეთოდი</Label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger><SelectValue placeholder="აირჩიეთ მეთოდი" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">ნაღდი</SelectItem>
+                      <SelectItem value="credit_card">საკრედიტო ბარათი</SelectItem>
+                      <SelectItem value="debit_card">სადებეტო ბარათი</SelectItem>
+                      <SelectItem value="bank_transfer">საბანკო გადარიცხვა</SelectItem>
+                      <SelectItem value="check">ჩეკი</SelectItem>
+                      <SelectItem value="other">სხვა</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            {paymentReceived === false && (
+              <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  ეს შეკვეთა აღინიშნება, როგორც დავალიანება კომპანიის და საერთო ფინანსურ ჩანაწერებში.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>გაუქმება</Button>
+            <Button onClick={handleConfirmOrderCompletion}>
+              <DollarSign className="h-4 w-4 mr-2" />
+              დასრულება
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
