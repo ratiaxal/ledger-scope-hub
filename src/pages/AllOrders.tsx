@@ -44,6 +44,124 @@ const AllOrders = () => {
   const [productStats, setProductStats] = useState<ProductStats[]>([]);
   const [companyStats, setCompanyStats] = useState<CompanyStats[]>([]);
 
+  // Order completion dialog state
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<{
+    id: string;
+    companyId: string | null;
+    totalAmount: number;
+    paymentReceived: number;
+  } | null>(null);
+  const [paymentReceived, setPaymentReceived] = useState<boolean | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+
+  const handleInitiateOrderCompletion = async (orderId: string) => {
+    const { data: orderData, error } = await supabase
+      .from("orders")
+      .select("id, company_id, total_amount, payment_received_amount")
+      .eq("id", orderId)
+      .single();
+
+    if (error || !orderData) {
+      toast({ title: "Error loading order details", description: error?.message, variant: "destructive" });
+      return;
+    }
+
+    const alreadyPaid = Number(orderData.payment_received_amount) || 0;
+    setSelectedOrderForCompletion({
+      id: orderData.id,
+      companyId: orderData.company_id,
+      totalAmount: Number(orderData.total_amount),
+      paymentReceived: alreadyPaid,
+    });
+    const remaining = Math.max(0, Number(orderData.total_amount) - alreadyPaid);
+    setPaymentAmount(String(remaining));
+    setPaymentReceived(null);
+    setPaymentMethod("");
+    setShowPaymentDialog(true);
+  };
+
+  const handleConfirmOrderCompletion = async () => {
+    if (!selectedOrderForCompletion) return;
+    if (paymentReceived === null) {
+      toast({ title: "აირჩიეთ გადახდის სტატუსი", variant: "destructive" });
+      return;
+    }
+    if (paymentReceived && (!paymentAmount || !paymentMethod)) {
+      toast({ title: "შეიყვანეთ თანხა და გადახდის მეთოდი", variant: "destructive" });
+      return;
+    }
+
+    const paymentAmountValue = paymentReceived ? parseFloat(paymentAmount) : 0;
+
+    const { data: orderLinesData } = await supabase
+      .from("order_lines")
+      .select("product_id, quantity")
+      .eq("order_id", selectedOrderForCompletion.id);
+
+    for (const line of orderLinesData || []) {
+      const { data: productData } = await supabase
+        .from("products")
+        .select("current_stock")
+        .eq("id", line.product_id)
+        .single();
+      if (!productData) continue;
+      await supabase
+        .from("products")
+        .update({ current_stock: productData.current_stock - line.quantity })
+        .eq("id", line.product_id);
+      await supabase.from("inventory_transactions").insert([{
+        product_id: line.product_id,
+        change_quantity: -line.quantity,
+        reason: "order",
+        related_order_id: selectedOrderForCompletion.id,
+        comment: "Stock deducted for completed order",
+      }]);
+    }
+
+    const previouslyPaid = selectedOrderForCompletion.paymentReceived || 0;
+    const totalPaid = previouslyPaid + paymentAmountValue;
+    const fullyPaid = totalPaid >= selectedOrderForCompletion.totalAmount;
+
+    const { error: orderError } = await supabase
+      .from("orders")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        payment_status: fullyPaid ? "paid" : (totalPaid > 0 ? "partially_paid" : "unpaid"),
+        payment_received_amount: totalPaid,
+        debt_flag: !fullyPaid,
+      })
+      .eq("id", selectedOrderForCompletion.id);
+
+    if (orderError) {
+      toast({ title: "შეცდომა შეკვეთის დასრულებისას", description: orderError.message, variant: "destructive" });
+      return;
+    }
+
+    if (paymentReceived && paymentAmountValue > 0) {
+      await supabase.from("finance_entries").insert({
+        type: "income",
+        amount: paymentAmountValue,
+        company_id: selectedOrderForCompletion.companyId,
+        related_order_id: selectedOrderForCompletion.id,
+        comment: `Payment received via ${paymentMethod} for completed order`,
+      });
+    }
+
+    toast({ title: "შეკვეთა წარმატებით დასრულდა" });
+    setShowPaymentDialog(false);
+    setSelectedOrderForCompletion(null);
+    setPaymentReceived(null);
+    setPaymentAmount("");
+    setPaymentMethod("");
+    fetchOrders();
+    fetchProductStats();
+    fetchCompanyStats();
+  };
+
+
   useEffect(() => {
     if (user) {
       fetchOrders();
