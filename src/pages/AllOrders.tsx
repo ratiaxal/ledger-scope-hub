@@ -571,6 +571,69 @@ const AllOrders = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>შეკვეთის დასრულება — გადახდის დადასტურება</DialogTitle>
+            <DialogDescription>მიღებულია თუ არა გადახდა ამ შეკვეთისთვის?</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>გადახდის სტატუსი</Label>
+              <div className="flex gap-3">
+                <Button type="button" variant={paymentReceived === true ? "default" : "outline"} onClick={() => setPaymentReceived(true)} className="flex-1">
+                  <Check className="h-4 w-4 mr-2" />
+                  გადახდილია
+                </Button>
+                <Button type="button" variant={paymentReceived === false ? "default" : "outline"} onClick={() => setPaymentReceived(false)} className="flex-1">
+                  გადაუხდელია
+                </Button>
+              </div>
+            </div>
+
+            {paymentReceived === true && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentAmount">გადახდის თანხა (₾)</Label>
+                  <Input id="paymentAmount" type="number" min="0" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentMethod">გადახდის მეთოდი</Label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger><SelectValue placeholder="აირჩიეთ მეთოდი" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">ნაღდი</SelectItem>
+                      <SelectItem value="credit_card">საკრედიტო ბარათი</SelectItem>
+                      <SelectItem value="debit_card">სადებეტო ბარათი</SelectItem>
+                      <SelectItem value="bank_transfer">საბანკო გადარიცხვა</SelectItem>
+                      <SelectItem value="check">ჩეკი</SelectItem>
+                      <SelectItem value="other">სხვა</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            {paymentReceived === false && (
+              <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  ეს შეკვეთა აღინიშნება, როგორც დავალიანება კომპანიის და საერთო ფინანსურ ჩანაწერებში.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>გაუქმება</Button>
+            <Button onClick={handleConfirmOrderCompletion}>
+              <DollarSign className="h-4 w-4 mr-2" />
+              დასრულება
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
