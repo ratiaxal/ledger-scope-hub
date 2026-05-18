@@ -499,9 +499,17 @@ const AllOrders = () => {
                         {order.created_at}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold">${order.total_amount.toLocaleString()}</div>
+                    <div className="text-right space-y-2">
+                      <div className="text-2xl font-bold">₾{order.total_amount.toLocaleString()}</div>
                       <div className="text-sm text-muted-foreground">რაოდენობა: {order.total_quantity}</div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleInitiateOrderCompletion(order.id)}
+                        className="gap-2"
+                      >
+                        <Check className="h-4 w-4" />
+                        შეკვეთის დასრულება
+                      </Button>
                     </div>
                   </div>
                 ))
