@@ -1093,7 +1093,7 @@ const Orders = () => {
       // Fetch old order data to detect payment changes
       const { data: oldOrderData, error: fetchOldError } = await supabase
         .from("orders")
-        .select("payment_received_amount, total_amount, company_id")
+        .select("payment_received_amount, total_amount, company_id, status")
         .eq("id", editingOrderId)
         .single();
 
@@ -1102,13 +1102,53 @@ const Orders = () => {
       const oldPaymentReceived = parseFloat(String(oldOrderData.payment_received_amount)) || 0;
       const paymentDifference = newPaymentReceived - oldPaymentReceived;
 
-      // Update order lines
+      // Update order lines and adjust warehouse stock by quantity diff (only when order holds stock)
+      const orderHoldsStock = oldOrderData.status !== "canceled";
       for (const line of editOrderLines) {
         if (line.quantity !== line.original_quantity) {
           await supabase
             .from("order_lines")
             .update({ quantity: line.quantity })
             .eq("id", line.id);
+
+          if (orderHoldsStock) {
+            const diff = line.quantity - line.original_quantity; // positive = more stock taken
+            const { data: pData } = await supabase
+              .from("products")
+              .select("current_stock, id")
+              .eq("id", (line as any).product_id || undefined)
+              .maybeSingle();
+            // product_id may not be on editOrderLines; fetch via order_lines
+            let productId = (line as any).product_id as string | undefined;
+            if (!productId) {
+              const { data: ol } = await supabase
+                .from("order_lines")
+                .select("product_id")
+                .eq("id", line.id)
+                .single();
+              productId = ol?.product_id;
+            }
+            if (productId) {
+              const { data: productData } = await supabase
+                .from("products")
+                .select("current_stock")
+                .eq("id", productId)
+                .single();
+              if (productData) {
+                await supabase
+                  .from("products")
+                  .update({ current_stock: productData.current_stock - diff })
+                  .eq("id", productId);
+                await supabase.from("inventory_transactions").insert([{
+                  product_id: productId,
+                  change_quantity: -diff,
+                  reason: "correction",
+                  related_order_id: editingOrderId,
+                  comment: "Stock adjusted from order edit",
+                }]);
+              }
+            }
+          }
         }
       }
 
