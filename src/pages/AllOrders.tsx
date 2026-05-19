@@ -95,30 +95,7 @@ const AllOrders = () => {
 
     const paymentAmountValue = paymentReceived ? parseFloat(paymentAmount) : 0;
 
-    const { data: orderLinesData } = await supabase
-      .from("order_lines")
-      .select("product_id, quantity")
-      .eq("order_id", selectedOrderForCompletion.id);
-
-    for (const line of orderLinesData || []) {
-      const { data: productData } = await supabase
-        .from("products")
-        .select("current_stock")
-        .eq("id", line.product_id)
-        .single();
-      if (!productData) continue;
-      await supabase
-        .from("products")
-        .update({ current_stock: productData.current_stock - line.quantity })
-        .eq("id", line.product_id);
-      await supabase.from("inventory_transactions").insert([{
-        product_id: line.product_id,
-        change_quantity: -line.quantity,
-        reason: "order",
-        related_order_id: selectedOrderForCompletion.id,
-        comment: "Stock deducted for completed order",
-      }]);
-    }
+    // Stock was already deducted when the order was created — no warehouse changes here.
 
     const previouslyPaid = selectedOrderForCompletion.paymentReceived || 0;
     const totalPaid = previouslyPaid + paymentAmountValue;
