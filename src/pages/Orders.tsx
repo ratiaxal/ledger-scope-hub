@@ -478,49 +478,62 @@ const Orders = () => {
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: "open" | "completed" | "canceled") => {
     try {
-      // If canceling a completed order, restore stock
-      if (newStatus === "canceled") {
-        const { data: orderData } = await supabase
-          .from("orders")
-          .select("status")
-          .eq("id", orderId)
-          .single();
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("status")
+        .eq("id", orderId)
+        .single();
 
-        if (orderData?.status === "completed") {
-          // Fetch order lines to restore stock
-          const { data: orderLinesData, error: linesError } = await supabase
-            .from("order_lines")
-            .select("product_id, quantity")
-            .eq("order_id", orderId);
+      const prevStatus = orderData?.status;
 
-          if (linesError) throw linesError;
+      const { data: orderLinesData } = await supabase
+        .from("order_lines")
+        .select("product_id, quantity")
+        .eq("order_id", orderId);
 
-          // Restore stock for each product
-          for (const line of orderLinesData || []) {
-            const { data: productData } = await supabase
-              .from("products")
-              .select("current_stock")
-              .eq("id", line.product_id)
-              .single();
+      // Canceling an active order (open/completed): restore stock
+      if (newStatus === "canceled" && prevStatus && prevStatus !== "canceled") {
+        for (const line of orderLinesData || []) {
+          const { data: productData } = await supabase
+            .from("products")
+            .select("current_stock")
+            .eq("id", line.product_id)
+            .single();
+          if (!productData) continue;
+          await supabase
+            .from("products")
+            .update({ current_stock: productData.current_stock + line.quantity })
+            .eq("id", line.product_id);
+          await supabase.from("inventory_transactions").insert([{
+            product_id: line.product_id,
+            change_quantity: line.quantity,
+            reason: "correction",
+            related_order_id: orderId,
+            comment: "Stock restored from canceled order",
+          }]);
+        }
+      }
 
-            if (productData) {
-              await supabase
-                .from("products")
-                .update({ current_stock: productData.current_stock + line.quantity })
-                .eq("id", line.product_id);
-
-              // Create inventory transaction record
-              await supabase
-                .from("inventory_transactions")
-                .insert([{
-                  product_id: line.product_id,
-                  change_quantity: line.quantity,
-                  reason: "correction",
-                  related_order_id: orderId,
-                  comment: "Stock restored from canceled order",
-                }]);
-            }
-          }
+      // Reopening from canceled: deduct stock again
+      if (prevStatus === "canceled" && newStatus !== "canceled") {
+        for (const line of orderLinesData || []) {
+          const { data: productData } = await supabase
+            .from("products")
+            .select("current_stock")
+            .eq("id", line.product_id)
+            .single();
+          if (!productData) continue;
+          await supabase
+            .from("products")
+            .update({ current_stock: productData.current_stock - line.quantity })
+            .eq("id", line.product_id);
+          await supabase.from("inventory_transactions").insert([{
+            product_id: line.product_id,
+            change_quantity: -line.quantity,
+            reason: "order",
+            related_order_id: orderId,
+            comment: "Stock deducted on reopen",
+          }]);
         }
       }
 
