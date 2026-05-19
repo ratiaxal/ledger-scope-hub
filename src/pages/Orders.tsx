@@ -435,6 +435,27 @@ const Orders = () => {
       return;
     }
 
+    // Deduct stock from warehouse immediately when order is created
+    for (const line of orderLines) {
+      const { data: productData } = await supabase
+        .from("products")
+        .select("current_stock")
+        .eq("id", line.product_id)
+        .single();
+      if (!productData) continue;
+      await supabase
+        .from("products")
+        .update({ current_stock: productData.current_stock - line.quantity })
+        .eq("id", line.product_id);
+      await supabase.from("inventory_transactions").insert([{
+        product_id: line.product_id,
+        change_quantity: -line.quantity,
+        reason: "order",
+        related_order_id: orderData.id,
+        comment: "Stock deducted at order creation",
+      }]);
+    }
+
     // If payment was received at creation, record it as income so balance reflects it once.
     if (paymentAmountValue > 0) {
       await supabase.from("finance_entries").insert({
@@ -457,49 +478,62 @@ const Orders = () => {
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: "open" | "completed" | "canceled") => {
     try {
-      // If canceling a completed order, restore stock
-      if (newStatus === "canceled") {
-        const { data: orderData } = await supabase
-          .from("orders")
-          .select("status")
-          .eq("id", orderId)
-          .single();
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("status")
+        .eq("id", orderId)
+        .single();
 
-        if (orderData?.status === "completed") {
-          // Fetch order lines to restore stock
-          const { data: orderLinesData, error: linesError } = await supabase
-            .from("order_lines")
-            .select("product_id, quantity")
-            .eq("order_id", orderId);
+      const prevStatus = orderData?.status;
 
-          if (linesError) throw linesError;
+      const { data: orderLinesData } = await supabase
+        .from("order_lines")
+        .select("product_id, quantity")
+        .eq("order_id", orderId);
 
-          // Restore stock for each product
-          for (const line of orderLinesData || []) {
-            const { data: productData } = await supabase
-              .from("products")
-              .select("current_stock")
-              .eq("id", line.product_id)
-              .single();
+      // Canceling an active order (open/completed): restore stock
+      if (newStatus === "canceled" && prevStatus && prevStatus !== "canceled") {
+        for (const line of orderLinesData || []) {
+          const { data: productData } = await supabase
+            .from("products")
+            .select("current_stock")
+            .eq("id", line.product_id)
+            .single();
+          if (!productData) continue;
+          await supabase
+            .from("products")
+            .update({ current_stock: productData.current_stock + line.quantity })
+            .eq("id", line.product_id);
+          await supabase.from("inventory_transactions").insert([{
+            product_id: line.product_id,
+            change_quantity: line.quantity,
+            reason: "correction",
+            related_order_id: orderId,
+            comment: "Stock restored from canceled order",
+          }]);
+        }
+      }
 
-            if (productData) {
-              await supabase
-                .from("products")
-                .update({ current_stock: productData.current_stock + line.quantity })
-                .eq("id", line.product_id);
-
-              // Create inventory transaction record
-              await supabase
-                .from("inventory_transactions")
-                .insert([{
-                  product_id: line.product_id,
-                  change_quantity: line.quantity,
-                  reason: "correction",
-                  related_order_id: orderId,
-                  comment: "Stock restored from canceled order",
-                }]);
-            }
-          }
+      // Reopening from canceled: deduct stock again
+      if (prevStatus === "canceled" && newStatus !== "canceled") {
+        for (const line of orderLinesData || []) {
+          const { data: productData } = await supabase
+            .from("products")
+            .select("current_stock")
+            .eq("id", line.product_id)
+            .single();
+          if (!productData) continue;
+          await supabase
+            .from("products")
+            .update({ current_stock: productData.current_stock - line.quantity })
+            .eq("id", line.product_id);
+          await supabase.from("inventory_transactions").insert([{
+            product_id: line.product_id,
+            change_quantity: -line.quantity,
+            reason: "order",
+            related_order_id: orderId,
+            comment: "Stock deducted on reopen",
+          }]);
         }
       }
 
@@ -575,8 +609,8 @@ const Orders = () => {
 
       if (linesFetchError) throw linesFetchError;
 
-      // 2. Restore stock for completed orders (stock was deducted when order was completed)
-      if (orderData?.status === "completed" && orderLinesData && orderLinesData.length > 0) {
+      // 2. Restore stock for non-canceled orders (stock is held while open/completed)
+      if (orderData?.status !== "canceled" && orderLinesData && orderLinesData.length > 0) {
         for (const line of orderLinesData) {
           const { data: productData } = await supabase
             .from("products")
@@ -953,66 +987,7 @@ const Orders = () => {
 
     const paymentAmountValue = paymentReceived ? parseFloat(paymentAmount) : 0;
 
-    // Fetch order lines to deduct stock
-    const { data: orderLinesData, error: orderLinesError } = await supabase
-      .from("order_lines")
-      .select("product_id, quantity")
-      .eq("order_id", selectedOrderForCompletion.id);
-
-    if (orderLinesError) {
-      toast({
-        title: "Error fetching order details",
-        description: orderLinesError.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Deduct stock for each product in the order
-    for (const line of orderLinesData || []) {
-      // Get current stock
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .select("current_stock")
-        .eq("id", line.product_id)
-        .single();
-
-      if (productError) {
-        toast({
-          title: "Error fetching product stock",
-          description: productError.message,
-          variant: "destructive",
-        });
-        continue;
-      }
-
-      // Update stock
-      const newStock = productData.current_stock - line.quantity;
-      const { error: updateError } = await supabase
-        .from("products")
-        .update({ current_stock: newStock })
-        .eq("id", line.product_id);
-
-      if (updateError) {
-        toast({
-          title: "Error updating stock",
-          description: updateError.message,
-          variant: "destructive",
-        });
-        continue;
-      }
-
-      // Create inventory transaction record
-      await supabase
-        .from("inventory_transactions")
-        .insert([{
-          product_id: line.product_id,
-          change_quantity: -line.quantity,
-          reason: "order",
-          related_order_id: selectedOrderForCompletion.id,
-          comment: "Stock deducted for completed order",
-        }]);
-    }
+    // Stock was already deducted at order creation — no inventory changes here.
 
     // Update order with payment information.
     // IMPORTANT: add the new payment to any payment already recorded so we don't overwrite/lose it.
@@ -1118,7 +1093,7 @@ const Orders = () => {
       // Fetch old order data to detect payment changes
       const { data: oldOrderData, error: fetchOldError } = await supabase
         .from("orders")
-        .select("payment_received_amount, total_amount, company_id")
+        .select("payment_received_amount, total_amount, company_id, status")
         .eq("id", editingOrderId)
         .single();
 
@@ -1127,13 +1102,53 @@ const Orders = () => {
       const oldPaymentReceived = parseFloat(String(oldOrderData.payment_received_amount)) || 0;
       const paymentDifference = newPaymentReceived - oldPaymentReceived;
 
-      // Update order lines
+      // Update order lines and adjust warehouse stock by quantity diff (only when order holds stock)
+      const orderHoldsStock = oldOrderData.status !== "canceled";
       for (const line of editOrderLines) {
         if (line.quantity !== line.original_quantity) {
           await supabase
             .from("order_lines")
             .update({ quantity: line.quantity })
             .eq("id", line.id);
+
+          if (orderHoldsStock) {
+            const diff = line.quantity - line.original_quantity; // positive = more stock taken
+            const { data: pData } = await supabase
+              .from("products")
+              .select("current_stock, id")
+              .eq("id", (line as any).product_id || undefined)
+              .maybeSingle();
+            // product_id may not be on editOrderLines; fetch via order_lines
+            let productId = (line as any).product_id as string | undefined;
+            if (!productId) {
+              const { data: ol } = await supabase
+                .from("order_lines")
+                .select("product_id")
+                .eq("id", line.id)
+                .single();
+              productId = ol?.product_id;
+            }
+            if (productId) {
+              const { data: productData } = await supabase
+                .from("products")
+                .select("current_stock")
+                .eq("id", productId)
+                .single();
+              if (productData) {
+                await supabase
+                  .from("products")
+                  .update({ current_stock: productData.current_stock - diff })
+                  .eq("id", productId);
+                await supabase.from("inventory_transactions").insert([{
+                  product_id: productId,
+                  change_quantity: -diff,
+                  reason: "correction",
+                  related_order_id: editingOrderId,
+                  comment: "Stock adjusted from order edit",
+                }]);
+              }
+            }
+          }
         }
       }
 
