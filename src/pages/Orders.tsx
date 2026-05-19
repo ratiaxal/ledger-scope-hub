@@ -987,66 +987,7 @@ const Orders = () => {
 
     const paymentAmountValue = paymentReceived ? parseFloat(paymentAmount) : 0;
 
-    // Fetch order lines to deduct stock
-    const { data: orderLinesData, error: orderLinesError } = await supabase
-      .from("order_lines")
-      .select("product_id, quantity")
-      .eq("order_id", selectedOrderForCompletion.id);
-
-    if (orderLinesError) {
-      toast({
-        title: "Error fetching order details",
-        description: orderLinesError.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Deduct stock for each product in the order
-    for (const line of orderLinesData || []) {
-      // Get current stock
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .select("current_stock")
-        .eq("id", line.product_id)
-        .single();
-
-      if (productError) {
-        toast({
-          title: "Error fetching product stock",
-          description: productError.message,
-          variant: "destructive",
-        });
-        continue;
-      }
-
-      // Update stock
-      const newStock = productData.current_stock - line.quantity;
-      const { error: updateError } = await supabase
-        .from("products")
-        .update({ current_stock: newStock })
-        .eq("id", line.product_id);
-
-      if (updateError) {
-        toast({
-          title: "Error updating stock",
-          description: updateError.message,
-          variant: "destructive",
-        });
-        continue;
-      }
-
-      // Create inventory transaction record
-      await supabase
-        .from("inventory_transactions")
-        .insert([{
-          product_id: line.product_id,
-          change_quantity: -line.quantity,
-          reason: "order",
-          related_order_id: selectedOrderForCompletion.id,
-          comment: "Stock deducted for completed order",
-        }]);
-    }
+    // Stock was already deducted at order creation — no inventory changes here.
 
     // Update order with payment information.
     // IMPORTANT: add the new payment to any payment already recorded so we don't overwrite/lose it.
