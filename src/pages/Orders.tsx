@@ -609,8 +609,8 @@ const Orders = () => {
 
       if (linesFetchError) throw linesFetchError;
 
-      // 2. Restore stock for completed orders (stock was deducted when order was completed)
-      if (orderData?.status === "completed" && orderLinesData && orderLinesData.length > 0) {
+      // 2. Restore stock for non-canceled orders (stock is held while open/completed)
+      if (orderData?.status !== "canceled" && orderLinesData && orderLinesData.length > 0) {
         for (const line of orderLinesData) {
           const { data: productData } = await supabase
             .from("products")
