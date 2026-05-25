@@ -575,9 +575,16 @@ const Orders = () => {
         .select("product_id, quantity")
         .eq("order_id", orderId);
 
-      // Canceling an active order (open/completed): restore stock
+      const { data: orderGiftsData } = await supabase
+        .from("order_gifts")
+        .select("product_id, quantity")
+        .eq("order_id", orderId);
+
+      const allStockItems = [...(orderLinesData || []), ...(orderGiftsData || [])];
+
+      // Canceling an active order (open/completed): restore stock (lines + gifts)
       if (newStatus === "canceled" && prevStatus && prevStatus !== "canceled") {
-        for (const line of orderLinesData || []) {
+        for (const line of allStockItems) {
           const { data: productData } = await supabase
             .from("products")
             .select("current_stock")
@@ -598,9 +605,9 @@ const Orders = () => {
         }
       }
 
-      // Reopening from canceled: deduct stock again
+      // Reopening from canceled: deduct stock again (lines + gifts)
       if (prevStatus === "canceled" && newStatus !== "canceled") {
-        for (const line of orderLinesData || []) {
+        for (const line of allStockItems) {
           const { data: productData } = await supabase
             .from("products")
             .select("current_stock")
