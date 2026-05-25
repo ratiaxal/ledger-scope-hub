@@ -49,6 +49,9 @@ const Orders = () => {
   const [showForm, setShowForm] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
+  const [giftLines, setGiftLines] = useState<{ product_id: string; product_name: string; quantity: number }[]>([]);
+  const [selectedGifts, setSelectedGifts] = useState<Set<string>>(new Set());
+  const [giftSearch, setGiftSearch] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [productSearch, setProductSearch] = useState("");
   const [newOrder, setNewOrder] = useState({
