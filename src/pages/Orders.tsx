@@ -700,9 +700,16 @@ const Orders = () => {
 
       if (linesFetchError) throw linesFetchError;
 
+      const { data: orderGiftsData } = await supabase
+        .from("order_gifts")
+        .select("product_id, quantity")
+        .eq("order_id", orderId);
+
+      const allStockItems = [...(orderLinesData || []), ...(orderGiftsData || [])];
+
       // 2. Restore stock for non-canceled orders (stock is held while open/completed)
-      if (orderData?.status !== "canceled" && orderLinesData && orderLinesData.length > 0) {
-        for (const line of orderLinesData) {
+      if (orderData?.status !== "canceled" && allStockItems.length > 0) {
+        for (const line of allStockItems) {
           const { data: productData } = await supabase
             .from("products")
             .select("current_stock")
