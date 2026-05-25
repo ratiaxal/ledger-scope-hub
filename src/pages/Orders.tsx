@@ -49,6 +49,9 @@ const Orders = () => {
   const [showForm, setShowForm] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
+  const [giftLines, setGiftLines] = useState<{ product_id: string; product_name: string; quantity: number }[]>([]);
+  const [selectedGifts, setSelectedGifts] = useState<Set<string>>(new Set());
+  const [giftSearch, setGiftSearch] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [productSearch, setProductSearch] = useState("");
   const [newOrder, setNewOrder] = useState({
@@ -159,6 +162,11 @@ const Orders = () => {
           unit_price,
           line_total,
           products (name)
+        ),
+        order_gifts (
+          id,
+          quantity,
+          products (name)
         )
       `);
     
@@ -176,20 +184,26 @@ const Orders = () => {
         variant: "destructive",
       });
     } else {
-      const formattedOrders: any[] = (data || []).map((order: any) => ({
-        id: order.id,
-        date: new Date(order.created_at).toISOString().split("T")[0],
-        company: order.manual_company_name || order.companies?.name || "Unknown",
-        items: order.order_lines?.map((line: any) => 
+      const formattedOrders: any[] = (data || []).map((order: any) => {
+        const lineItems = order.order_lines?.map((line: any) =>
           `${line.products?.name || "Unknown"} (${line.quantity})`
-        ).join(", ") || "",
-        quantity: order.total_quantity,
-        total: parseFloat(order.total_amount),
-        status: order.status as "open" | "completed" | "canceled",
-        paymentStatus: order.payment_status,
-        paymentReceived: parseFloat(order.payment_received_amount || 0),
-        debtFlag: order.debt_flag,
-      }));
+        ) || [];
+        const giftItems = (order.order_gifts || []).map((g: any) =>
+          `🎁 ${g.products?.name || "Unknown"} (${g.quantity})`
+        );
+        return {
+          id: order.id,
+          date: new Date(order.created_at).toISOString().split("T")[0],
+          company: order.manual_company_name || order.companies?.name || "Unknown",
+          items: [...lineItems, ...giftItems].join(", "),
+          quantity: order.total_quantity,
+          total: parseFloat(order.total_amount),
+          status: order.status as "open" | "completed" | "canceled",
+          paymentStatus: order.payment_status,
+          paymentReceived: parseFloat(order.payment_received_amount || 0),
+          debtFlag: order.debt_flag,
+        };
+      });
       setOrders(formattedOrders);
     }
   };
@@ -352,6 +366,48 @@ const Orders = () => {
     setOrderLines(orderLines.filter(line => line.product_id !== productId));
   };
 
+  const handleToggleGift = (productId: string) => {
+    const next = new Set(selectedGifts);
+    if (next.has(productId)) next.delete(productId); else next.add(productId);
+    setSelectedGifts(next);
+  };
+
+  const handleAddSelectedGifts = () => {
+    if (selectedGifts.size === 0) return;
+    const additions: typeof giftLines = [];
+    const outOfStock: string[] = [];
+    selectedGifts.forEach((pid) => {
+      const p = products.find((x) => x.id === pid);
+      if (!p) return;
+      if (giftLines.some((g) => g.product_id === pid)) return;
+      if ((p.current_stock ?? 0) <= 0) { outOfStock.push(p.name); return; }
+      additions.push({ product_id: p.id, product_name: p.name, quantity: 1 });
+    });
+    if (outOfStock.length > 0) {
+      toast({ title: "მარაგი არ არის", description: `საწყობში არ არის: ${outOfStock.join(", ")}`, variant: "destructive" });
+    }
+    if (additions.length > 0) {
+      setGiftLines([...giftLines, ...additions]);
+      setSelectedGifts(new Set());
+    }
+  };
+
+  const handleUpdateGiftQuantity = (productId: string, quantity: number) => {
+    const product = products.find((p) => p.id === productId);
+    const stock = product?.current_stock ?? 0;
+    let q = quantity;
+    if (q > stock) {
+      q = stock;
+      toast({ title: "მარაგი არ არის საკმარისი", description: `${product?.name ?? "პროდუქტი"} — საწყობში დარჩენილია მხოლოდ ${stock}`, variant: "destructive" });
+    }
+    if (q < 1) q = 1;
+    setGiftLines(giftLines.map((g) => g.product_id === productId ? { ...g, quantity: q } : g));
+  };
+
+  const handleRemoveGiftLine = (productId: string) => {
+    setGiftLines(giftLines.filter((g) => g.product_id !== productId));
+  };
+
   const calculateOrderTotal = () => {
     return orderLines.reduce((sum, line) => sum + line.line_total, 0);
   };
@@ -366,13 +422,20 @@ const Orders = () => {
       return;
     }
 
-    // Validate stock availability
+    // Validate stock availability (combined: order lines + gifts)
     const stockIssues: string[] = [];
+    const combined = new Map<string, { name: string; qty: number }>();
     for (const line of orderLines) {
-      const product = products.find(p => p.id === line.product_id);
+      combined.set(line.product_id, { name: line.product_name, qty: (combined.get(line.product_id)?.qty || 0) + line.quantity });
+    }
+    for (const g of giftLines) {
+      combined.set(g.product_id, { name: g.product_name, qty: (combined.get(g.product_id)?.qty || 0) + g.quantity });
+    }
+    for (const [pid, info] of combined) {
+      const product = products.find(p => p.id === pid);
       const stock = product?.current_stock ?? 0;
-      if (line.quantity <= 0 || stock <= 0 || line.quantity > stock) {
-        stockIssues.push(`${line.product_name} (მარაგი: ${stock})`);
+      if (info.qty <= 0 || stock <= 0 || info.qty > stock) {
+        stockIssues.push(`${info.name} (მარაგი: ${stock})`);
       }
     }
     if (stockIssues.length > 0) {
@@ -456,6 +519,36 @@ const Orders = () => {
       }]);
     }
 
+    // Insert gift items and deduct their stock (gifts do NOT affect totals/debt/finance)
+    if (giftLines.length > 0) {
+      await supabase.from("order_gifts").insert(
+        giftLines.map((g) => ({
+          order_id: orderData.id,
+          product_id: g.product_id,
+          quantity: g.quantity,
+        }))
+      );
+      for (const g of giftLines) {
+        const { data: productData } = await supabase
+          .from("products")
+          .select("current_stock")
+          .eq("id", g.product_id)
+          .single();
+        if (!productData) continue;
+        await supabase
+          .from("products")
+          .update({ current_stock: productData.current_stock - g.quantity })
+          .eq("id", g.product_id);
+        await supabase.from("inventory_transactions").insert([{
+          product_id: g.product_id,
+          change_quantity: -g.quantity,
+          reason: "order",
+          related_order_id: orderData.id,
+          comment: "საჩუქარი — საწყობიდან ჩამოწერა",
+        }]);
+      }
+    }
+
     // If payment was received at creation, record it as income so balance reflects it once.
     if (paymentAmountValue > 0) {
       await supabase.from("finance_entries").insert({
@@ -470,6 +563,8 @@ const Orders = () => {
     toast({ title: "Order created successfully" });
     setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "", paymentAmount: "", manualTotal: "", notes: "" });
     setOrderLines([]);
+    setGiftLines([]);
+    setSelectedGifts(new Set());
     setSelectedProducts(new Set());
     setShowForm(false);
     setUseCustomCompany(false);
@@ -491,9 +586,16 @@ const Orders = () => {
         .select("product_id, quantity")
         .eq("order_id", orderId);
 
-      // Canceling an active order (open/completed): restore stock
+      const { data: orderGiftsData } = await supabase
+        .from("order_gifts")
+        .select("product_id, quantity")
+        .eq("order_id", orderId);
+
+      const allStockItems = [...(orderLinesData || []), ...(orderGiftsData || [])];
+
+      // Canceling an active order (open/completed): restore stock (lines + gifts)
       if (newStatus === "canceled" && prevStatus && prevStatus !== "canceled") {
-        for (const line of orderLinesData || []) {
+        for (const line of allStockItems) {
           const { data: productData } = await supabase
             .from("products")
             .select("current_stock")
@@ -514,9 +616,9 @@ const Orders = () => {
         }
       }
 
-      // Reopening from canceled: deduct stock again
+      // Reopening from canceled: deduct stock again (lines + gifts)
       if (prevStatus === "canceled" && newStatus !== "canceled") {
-        for (const line of orderLinesData || []) {
+        for (const line of allStockItems) {
           const { data: productData } = await supabase
             .from("products")
             .select("current_stock")
@@ -609,9 +711,16 @@ const Orders = () => {
 
       if (linesFetchError) throw linesFetchError;
 
+      const { data: orderGiftsData } = await supabase
+        .from("order_gifts")
+        .select("product_id, quantity")
+        .eq("order_id", orderId);
+
+      const allStockItems = [...(orderLinesData || []), ...(orderGiftsData || [])];
+
       // 2. Restore stock for non-canceled orders (stock is held while open/completed)
-      if (orderData?.status !== "canceled" && orderLinesData && orderLinesData.length > 0) {
-        for (const line of orderLinesData) {
+      if (orderData?.status !== "canceled" && allStockItems.length > 0) {
+        for (const line of allStockItems) {
           const { data: productData } = await supabase
             .from("products")
             .select("current_stock")
@@ -1514,6 +1623,99 @@ const Orders = () => {
                   </div>
                 </div>
               )}
+
+              {/* Gift products section */}
+              <div className="space-y-3 border-2 border-dashed border-primary/30 rounded-lg p-4 bg-primary/5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <Label className="text-base font-semibold">🎁 საჩუქარი (Gift)</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      საჩუქრად გაცემული პროდუქცია — საწყობიდან ჩამოიწერება, მაგრამ არ მონაწილეობს გაყიდვებში, ვალში და ფინანსურ ანგარიშებში.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleAddSelectedGifts}
+                    disabled={selectedGifts.size === 0}
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    დამატება ({selectedGifts.size})
+                  </Button>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="ძებნა საჩუქრის პროდუქტისთვის..."
+                    value={giftSearch}
+                    onChange={(e) => setGiftSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <div className="border rounded-lg max-h-48 overflow-y-auto bg-background">
+                  {(() => {
+                    const filtered = products.filter(p =>
+                      p.name.toLowerCase().includes(giftSearch.toLowerCase()) ||
+                      (p.sku?.toLowerCase().includes(giftSearch.toLowerCase()) ?? false)
+                    );
+                    if (filtered.length === 0) {
+                      return <div className="p-3 text-center text-muted-foreground text-sm">პროდუქტი ვერ მოიძებნა</div>;
+                    }
+                    return (
+                      <div className="divide-y">
+                        {filtered.map((product) => {
+                          const isAlreadyAdded = giftLines.some(g => g.product_id === product.id);
+                          return (
+                            <div
+                              key={product.id}
+                              className={`flex items-center gap-3 p-2 hover:bg-muted/50 ${isAlreadyAdded ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                              onClick={() => !isAlreadyAdded && handleToggleGift(product.id)}
+                            >
+                              <Checkbox
+                                checked={selectedGifts.has(product.id)}
+                                onCheckedChange={() => !isAlreadyAdded && handleToggleGift(product.id)}
+                                disabled={isAlreadyAdded}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium truncate text-sm">{product.name}</div>
+                                <div className="text-xs text-muted-foreground">მარაგი: {product.current_stock}</div>
+                              </div>
+                              {isAlreadyAdded && <span className="text-xs text-muted-foreground">დამატებულია</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {giftLines.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">საჩუქარი ({giftLines.reduce((s, g) => s + g.quantity, 0)} ცალი)</h4>
+                    {giftLines.map((g) => (
+                      <div key={g.product_id} className="flex items-center gap-2 p-2 border rounded bg-background">
+                        <span className="flex-1 text-sm font-medium truncate">🎁 {g.product_name}</span>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={g.quantity}
+                          onChange={(e) => handleUpdateGiftQuantity(g.product_id, parseInt(e.target.value) || 1)}
+                          className="w-20 h-8"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveGiftLine(g.product_id)}
+                          className="h-7 w-7 text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="paymentAmount">Payment Amount (Optional)</Label>
