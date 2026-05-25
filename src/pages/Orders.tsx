@@ -162,6 +162,11 @@ const Orders = () => {
           unit_price,
           line_total,
           products (name)
+        ),
+        order_gifts (
+          id,
+          quantity,
+          products (name)
         )
       `);
     
@@ -179,20 +184,26 @@ const Orders = () => {
         variant: "destructive",
       });
     } else {
-      const formattedOrders: any[] = (data || []).map((order: any) => ({
-        id: order.id,
-        date: new Date(order.created_at).toISOString().split("T")[0],
-        company: order.manual_company_name || order.companies?.name || "Unknown",
-        items: order.order_lines?.map((line: any) => 
+      const formattedOrders: any[] = (data || []).map((order: any) => {
+        const lineItems = order.order_lines?.map((line: any) =>
           `${line.products?.name || "Unknown"} (${line.quantity})`
-        ).join(", ") || "",
-        quantity: order.total_quantity,
-        total: parseFloat(order.total_amount),
-        status: order.status as "open" | "completed" | "canceled",
-        paymentStatus: order.payment_status,
-        paymentReceived: parseFloat(order.payment_received_amount || 0),
-        debtFlag: order.debt_flag,
-      }));
+        ) || [];
+        const giftItems = (order.order_gifts || []).map((g: any) =>
+          `🎁 ${g.products?.name || "Unknown"} (${g.quantity})`
+        );
+        return {
+          id: order.id,
+          date: new Date(order.created_at).toISOString().split("T")[0],
+          company: order.manual_company_name || order.companies?.name || "Unknown",
+          items: [...lineItems, ...giftItems].join(", "),
+          quantity: order.total_quantity,
+          total: parseFloat(order.total_amount),
+          status: order.status as "open" | "completed" | "canceled",
+          paymentStatus: order.payment_status,
+          paymentReceived: parseFloat(order.payment_received_amount || 0),
+          debtFlag: order.debt_flag,
+        };
+      });
       setOrders(formattedOrders);
     }
   };
