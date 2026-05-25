@@ -411,13 +411,20 @@ const Orders = () => {
       return;
     }
 
-    // Validate stock availability
+    // Validate stock availability (combined: order lines + gifts)
     const stockIssues: string[] = [];
+    const combined = new Map<string, { name: string; qty: number }>();
     for (const line of orderLines) {
-      const product = products.find(p => p.id === line.product_id);
+      combined.set(line.product_id, { name: line.product_name, qty: (combined.get(line.product_id)?.qty || 0) + line.quantity });
+    }
+    for (const g of giftLines) {
+      combined.set(g.product_id, { name: g.product_name, qty: (combined.get(g.product_id)?.qty || 0) + g.quantity });
+    }
+    for (const [pid, info] of combined) {
+      const product = products.find(p => p.id === pid);
       const stock = product?.current_stock ?? 0;
-      if (line.quantity <= 0 || stock <= 0 || line.quantity > stock) {
-        stockIssues.push(`${line.product_name} (მარაგი: ${stock})`);
+      if (info.qty <= 0 || stock <= 0 || info.qty > stock) {
+        stockIssues.push(`${info.name} (მარაგი: ${stock})`);
       }
     }
     if (stockIssues.length > 0) {
