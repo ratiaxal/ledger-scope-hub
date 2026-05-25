@@ -355,6 +355,48 @@ const Orders = () => {
     setOrderLines(orderLines.filter(line => line.product_id !== productId));
   };
 
+  const handleToggleGift = (productId: string) => {
+    const next = new Set(selectedGifts);
+    if (next.has(productId)) next.delete(productId); else next.add(productId);
+    setSelectedGifts(next);
+  };
+
+  const handleAddSelectedGifts = () => {
+    if (selectedGifts.size === 0) return;
+    const additions: typeof giftLines = [];
+    const outOfStock: string[] = [];
+    selectedGifts.forEach((pid) => {
+      const p = products.find((x) => x.id === pid);
+      if (!p) return;
+      if (giftLines.some((g) => g.product_id === pid)) return;
+      if ((p.current_stock ?? 0) <= 0) { outOfStock.push(p.name); return; }
+      additions.push({ product_id: p.id, product_name: p.name, quantity: 1 });
+    });
+    if (outOfStock.length > 0) {
+      toast({ title: "მარაგი არ არის", description: `საწყობში არ არის: ${outOfStock.join(", ")}`, variant: "destructive" });
+    }
+    if (additions.length > 0) {
+      setGiftLines([...giftLines, ...additions]);
+      setSelectedGifts(new Set());
+    }
+  };
+
+  const handleUpdateGiftQuantity = (productId: string, quantity: number) => {
+    const product = products.find((p) => p.id === productId);
+    const stock = product?.current_stock ?? 0;
+    let q = quantity;
+    if (q > stock) {
+      q = stock;
+      toast({ title: "მარაგი არ არის საკმარისი", description: `${product?.name ?? "პროდუქტი"} — საწყობში დარჩენილია მხოლოდ ${stock}`, variant: "destructive" });
+    }
+    if (q < 1) q = 1;
+    setGiftLines(giftLines.map((g) => g.product_id === productId ? { ...g, quantity: q } : g));
+  };
+
+  const handleRemoveGiftLine = (productId: string) => {
+    setGiftLines(giftLines.filter((g) => g.product_id !== productId));
+  };
+
   const calculateOrderTotal = () => {
     return orderLines.reduce((sum, line) => sum + line.line_total, 0);
   };
