@@ -508,6 +508,36 @@ const Orders = () => {
       }]);
     }
 
+    // Insert gift items and deduct their stock (gifts do NOT affect totals/debt/finance)
+    if (giftLines.length > 0) {
+      await supabase.from("order_gifts").insert(
+        giftLines.map((g) => ({
+          order_id: orderData.id,
+          product_id: g.product_id,
+          quantity: g.quantity,
+        }))
+      );
+      for (const g of giftLines) {
+        const { data: productData } = await supabase
+          .from("products")
+          .select("current_stock")
+          .eq("id", g.product_id)
+          .single();
+        if (!productData) continue;
+        await supabase
+          .from("products")
+          .update({ current_stock: productData.current_stock - g.quantity })
+          .eq("id", g.product_id);
+        await supabase.from("inventory_transactions").insert([{
+          product_id: g.product_id,
+          change_quantity: -g.quantity,
+          reason: "order",
+          related_order_id: orderData.id,
+          comment: "საჩუქარი — საწყობიდან ჩამოწერა",
+        }]);
+      }
+    }
+
     // If payment was received at creation, record it as income so balance reflects it once.
     if (paymentAmountValue > 0) {
       await supabase.from("finance_entries").insert({
@@ -522,6 +552,8 @@ const Orders = () => {
     toast({ title: "Order created successfully" });
     setNewOrder({ company: "", customCompany: "", items: "", quantity: "", total: "", paymentAmount: "", manualTotal: "", notes: "" });
     setOrderLines([]);
+    setGiftLines([]);
+    setSelectedGifts(new Set());
     setSelectedProducts(new Set());
     setShowForm(false);
     setUseCustomCompany(false);
