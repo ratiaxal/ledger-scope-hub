@@ -364,6 +364,13 @@ const Orders = () => {
     ));
   };
 
+  const handleUpdateLineGiftQuantity = (productId: string, giftQty: number) => {
+    const q = Math.max(0, giftQty || 0);
+    setOrderLines(orderLines.map(line =>
+      line.product_id === productId ? { ...line, gift_quantity: q } : line
+    ));
+  };
+
   const handleRemoveProductLine = (productId: string) => {
     setOrderLines(orderLines.filter(line => line.product_id !== productId));
   };
