@@ -431,12 +431,6 @@ const Orders = () => {
       return;
     }
 
-    // Validate stock availability (combined: order lines + gifts)
-    const stockIssues: string[] = [];
-    const combined = new Map<string, { name: string; qty: number }>();
-    for (const line of orderLines) {
-      combined.set(line.product_id, { name: line.product_name, qty: (combined.get(line.product_id)?.qty || 0) + line.quantity });
-    }
     // Build merged gifts: standalone giftLines + per-line gift_quantity
     const mergedGifts = new Map<string, { product_id: string; product_name: string; quantity: number }>();
     for (const g of giftLines) {
