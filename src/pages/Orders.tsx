@@ -484,8 +484,12 @@ const Orders = () => {
       return;
     }
 
-    const companyName = useCustomCompany ? newOrder.customCompany : newOrder.company;
-    const selectedCompany = companies.find(c => c.name === newOrder.company);
+    const selectedCompany = companyId
+      ? companies.find(c => c.id === companyId)
+      : companies.find(c => c.name === newOrder.company);
+    const companyName = companyId
+      ? (selectedCompany?.name || "")
+      : (useCustomCompany ? newOrder.customCompany : newOrder.company);
     const paymentAmountValue = parseFloat(newOrder.paymentAmount) || 0;
     const orderTotal = newOrder.manualTotal !== '' ? parseFloat(newOrder.manualTotal) : calculateOrderTotal();
 
@@ -493,8 +497,8 @@ const Orders = () => {
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
       .insert([{
-        company_id: useCustomCompany ? null : selectedCompany?.id,
-        manual_company_name: useCustomCompany ? newOrder.customCompany : null,
+        company_id: useCustomCompany && !companyId ? null : selectedCompany?.id,
+        manual_company_name: useCustomCompany && !companyId ? newOrder.customCompany : null,
         total_quantity: orderLines.reduce((sum, line) => sum + line.quantity, 0),
         total_amount: orderTotal,
         status: "open",
