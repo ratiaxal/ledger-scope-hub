@@ -1374,7 +1374,11 @@ const Orders = () => {
               <Package className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
               შეკვეთების მართვა
             </h1>
-            {companyId && <p className="text-muted-foreground text-sm">Company ID: {companyId}</p>}
+            {companyId && (
+              <p className="text-muted-foreground text-sm">
+                {companies.find(c => c.id === companyId)?.name || companyId}
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             {companyId && (
