@@ -1471,54 +1471,58 @@ const Orders = () => {
               <CardDescription>Create a new order for inventory management</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Company Selection</Label>
-                <div className="flex gap-4">
-                  <Button
-                    type="button"
-                    variant={!useCustomCompany ? "default" : "outline"}
-                    onClick={() => setUseCustomCompany(false)}
-                    className="flex-1"
-                  >
-                    Registered Company
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={useCustomCompany ? "default" : "outline"}
-                    onClick={() => setUseCustomCompany(true)}
-                    className="flex-1"
-                  >
-                    Custom Company
-                  </Button>
-                </div>
-              </div>
+              {!companyId && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Company Selection</Label>
+                    <div className="flex gap-4">
+                      <Button
+                        type="button"
+                        variant={!useCustomCompany ? "default" : "outline"}
+                        onClick={() => setUseCustomCompany(false)}
+                        className="flex-1"
+                      >
+                        Registered Company
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={useCustomCompany ? "default" : "outline"}
+                        onClick={() => setUseCustomCompany(true)}
+                        className="flex-1"
+                      >
+                        Custom Company
+                      </Button>
+                    </div>
+                  </div>
 
-              {!useCustomCompany ? (
-                <div className="space-y-2">
-                  <Label htmlFor="company">Select Company</Label>
-                  <Select value={newOrder.company} onValueChange={(value) => setNewOrder({ ...newOrder, company: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a company" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companies.map((company) => (
-                        <SelectItem key={company.id} value={company.name}>
-                          {company.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="customCompany">Company Name</Label>
-                  <Input
-                    id="customCompany"
-                    placeholder="Enter company name"
-                    value={newOrder.customCompany}
-                    onChange={(e) => setNewOrder({ ...newOrder, customCompany: e.target.value })}
-                  />
-                </div>
+                  {!useCustomCompany ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="company">Select Company</Label>
+                      <Select value={newOrder.company} onValueChange={(value) => setNewOrder({ ...newOrder, company: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a company" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {companies.map((company) => (
+                            <SelectItem key={company.id} value={company.name}>
+                              {company.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="customCompany">Company Name</Label>
+                      <Input
+                        id="customCompany"
+                        placeholder="Enter company name"
+                        value={newOrder.customCompany}
+                        onChange={(e) => setNewOrder({ ...newOrder, customCompany: e.target.value })}
+                      />
+                    </div>
+                  )}
+                </>
               )}
 
 
