@@ -67,6 +67,16 @@ const Orders = () => {
   });
 
   const [useCustomCompany, setUseCustomCompany] = useState(false);
+
+  // Auto-select current company when inside a company page
+  useEffect(() => {
+    if (companyId && companies.length > 0) {
+      const current = companies.find(c => c.id === companyId);
+      if (current) {
+        setNewOrder(prev => ({ ...prev, company: current.name }));
+      }
+    }
+  }, [companyId, companies]);
   const [clearing, setClearing] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<{
@@ -422,7 +432,8 @@ const Orders = () => {
   };
 
   const handleAddOrder = async () => {
-    if ((!newOrder.company && !newOrder.customCompany) || orderLines.length === 0) {
+    const hasCompany = companyId || newOrder.company || newOrder.customCompany;
+    if (!hasCompany || orderLines.length === 0) {
       toast({
         title: "Missing information",
         description: "Please select a company and add at least one product",
@@ -473,8 +484,12 @@ const Orders = () => {
       return;
     }
 
-    const companyName = useCustomCompany ? newOrder.customCompany : newOrder.company;
-    const selectedCompany = companies.find(c => c.name === newOrder.company);
+    const selectedCompany = companyId
+      ? companies.find(c => c.id === companyId)
+      : companies.find(c => c.name === newOrder.company);
+    const companyName = companyId
+      ? (selectedCompany?.name || "")
+      : (useCustomCompany ? newOrder.customCompany : newOrder.company);
     const paymentAmountValue = parseFloat(newOrder.paymentAmount) || 0;
     const orderTotal = newOrder.manualTotal !== '' ? parseFloat(newOrder.manualTotal) : calculateOrderTotal();
 
@@ -482,8 +497,8 @@ const Orders = () => {
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
       .insert([{
-        company_id: useCustomCompany ? null : selectedCompany?.id,
-        manual_company_name: useCustomCompany ? newOrder.customCompany : null,
+        company_id: useCustomCompany && !companyId ? null : selectedCompany?.id,
+        manual_company_name: useCustomCompany && !companyId ? newOrder.customCompany : null,
         total_quantity: orderLines.reduce((sum, line) => sum + line.quantity, 0),
         total_amount: orderTotal,
         status: "open",
@@ -1359,7 +1374,11 @@ const Orders = () => {
               <Package className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
               შეკვეთების მართვა
             </h1>
-            {companyId && <p className="text-muted-foreground text-sm">Company ID: {companyId}</p>}
+            {companyId && (
+              <p className="text-muted-foreground text-sm">
+                {companies.find(c => c.id === companyId)?.name || companyId}
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             {companyId && (
@@ -1452,54 +1471,58 @@ const Orders = () => {
               <CardDescription>Create a new order for inventory management</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Company Selection</Label>
-                <div className="flex gap-4">
-                  <Button
-                    type="button"
-                    variant={!useCustomCompany ? "default" : "outline"}
-                    onClick={() => setUseCustomCompany(false)}
-                    className="flex-1"
-                  >
-                    Registered Company
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={useCustomCompany ? "default" : "outline"}
-                    onClick={() => setUseCustomCompany(true)}
-                    className="flex-1"
-                  >
-                    Custom Company
-                  </Button>
-                </div>
-              </div>
+              {!companyId && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Company Selection</Label>
+                    <div className="flex gap-4">
+                      <Button
+                        type="button"
+                        variant={!useCustomCompany ? "default" : "outline"}
+                        onClick={() => setUseCustomCompany(false)}
+                        className="flex-1"
+                      >
+                        Registered Company
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={useCustomCompany ? "default" : "outline"}
+                        onClick={() => setUseCustomCompany(true)}
+                        className="flex-1"
+                      >
+                        Custom Company
+                      </Button>
+                    </div>
+                  </div>
 
-              {!useCustomCompany ? (
-                <div className="space-y-2">
-                  <Label htmlFor="company">Select Company</Label>
-                  <Select value={newOrder.company} onValueChange={(value) => setNewOrder({ ...newOrder, company: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a company" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companies.map((company) => (
-                        <SelectItem key={company.id} value={company.name}>
-                          {company.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="customCompany">Company Name</Label>
-                  <Input
-                    id="customCompany"
-                    placeholder="Enter company name"
-                    value={newOrder.customCompany}
-                    onChange={(e) => setNewOrder({ ...newOrder, customCompany: e.target.value })}
-                  />
-                </div>
+                  {!useCustomCompany ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="company">Select Company</Label>
+                      <Select value={newOrder.company} onValueChange={(value) => setNewOrder({ ...newOrder, company: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a company" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {companies.map((company) => (
+                            <SelectItem key={company.id} value={company.name}>
+                              {company.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="customCompany">Company Name</Label>
+                      <Input
+                        id="customCompany"
+                        placeholder="Enter company name"
+                        value={newOrder.customCompany}
+                        onChange={(e) => setNewOrder({ ...newOrder, customCompany: e.target.value })}
+                      />
+                    </div>
+                  )}
+                </>
               )}
 
 
