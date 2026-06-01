@@ -1579,7 +1579,7 @@ const Orders = () => {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-4 gap-3">
                         <div className="space-y-1">
                           <Label htmlFor={`quantity-${line.product_id}`} className="text-xs">Quantity</Label>
                           <Input
@@ -1591,7 +1591,7 @@ const Orders = () => {
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label htmlFor={`price-${line.product_id}`} className="text-xs">Unit Price ($)</Label>
+                          <Label htmlFor={`price-${line.product_id}`} className="text-xs">Unit Price (₾)</Label>
                           <Input
                             id={`price-${line.product_id}`}
                             type="number"
@@ -1602,9 +1602,21 @@ const Orders = () => {
                           />
                         </div>
                         <div className="space-y-1">
+                          <Label htmlFor={`gift-qty-${line.product_id}`} className="text-xs">🎁 საჩუქარი</Label>
+                          <Input
+                            id={`gift-qty-${line.product_id}`}
+                            type="number"
+                            min="0"
+                            value={line.gift_quantity ?? 0}
+                            onChange={(e) => handleUpdateLineGiftQuantity(line.product_id, parseInt(e.target.value) || 0)}
+                            placeholder="0"
+                          />
+                          <p className="text-[10px] text-muted-foreground leading-tight">ფასში არ ჯდება</p>
+                        </div>
+                        <div className="space-y-1">
                           <Label className="text-xs">Total</Label>
                           <div className="h-10 flex items-center font-bold text-primary">
-                            ${line.line_total.toFixed(2)}
+                            ₾{line.line_total.toFixed(2)}
                           </div>
                         </div>
                       </div>
