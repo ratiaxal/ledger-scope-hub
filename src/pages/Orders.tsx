@@ -432,7 +432,8 @@ const Orders = () => {
   };
 
   const handleAddOrder = async () => {
-    if ((!newOrder.company && !newOrder.customCompany) || orderLines.length === 0) {
+    const hasCompany = companyId || newOrder.company || newOrder.customCompany;
+    if (!hasCompany || orderLines.length === 0) {
       toast({
         title: "Missing information",
         description: "Please select a company and add at least one product",
