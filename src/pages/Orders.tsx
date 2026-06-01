@@ -25,6 +25,7 @@ interface OrderLine {
   quantity: number;
   unit_price: number;
   line_total: number;
+  gift_quantity?: number;
 }
 
 interface Order {
@@ -306,6 +307,7 @@ const Orders = () => {
         quantity: 1,
         unit_price: 0,
         line_total: 0,
+        gift_quantity: 0,
       });
     });
 
@@ -359,6 +361,13 @@ const Orders = () => {
       line.product_id === productId 
         ? { ...line, unit_price: price, line_total: line.quantity * price }
         : line
+    ));
+  };
+
+  const handleUpdateLineGiftQuantity = (productId: string, giftQty: number) => {
+    const q = Math.max(0, giftQty || 0);
+    setOrderLines(orderLines.map(line =>
+      line.product_id === productId ? { ...line, gift_quantity: q } : line
     ));
   };
 
@@ -422,13 +431,30 @@ const Orders = () => {
       return;
     }
 
+    // Build merged gifts: standalone giftLines + per-line gift_quantity
+    const mergedGifts = new Map<string, { product_id: string; product_name: string; quantity: number }>();
+    for (const g of giftLines) {
+      mergedGifts.set(g.product_id, { product_id: g.product_id, product_name: g.product_name, quantity: g.quantity });
+    }
+    for (const line of orderLines) {
+      const gq = line.gift_quantity || 0;
+      if (gq <= 0) continue;
+      const existing = mergedGifts.get(line.product_id);
+      mergedGifts.set(line.product_id, {
+        product_id: line.product_id,
+        product_name: line.product_name,
+        quantity: (existing?.quantity || 0) + gq,
+      });
+    }
+    const allGifts = Array.from(mergedGifts.values());
+
     // Validate stock availability (combined: order lines + gifts)
     const stockIssues: string[] = [];
     const combined = new Map<string, { name: string; qty: number }>();
     for (const line of orderLines) {
       combined.set(line.product_id, { name: line.product_name, qty: (combined.get(line.product_id)?.qty || 0) + line.quantity });
     }
-    for (const g of giftLines) {
+    for (const g of allGifts) {
       combined.set(g.product_id, { name: g.product_name, qty: (combined.get(g.product_id)?.qty || 0) + g.quantity });
     }
     for (const [pid, info] of combined) {
@@ -520,15 +546,15 @@ const Orders = () => {
     }
 
     // Insert gift items and deduct their stock (gifts do NOT affect totals/debt/finance)
-    if (giftLines.length > 0) {
+    if (allGifts.length > 0) {
       await supabase.from("order_gifts").insert(
-        giftLines.map((g) => ({
+        allGifts.map((g) => ({
           order_id: orderData.id,
           product_id: g.product_id,
           quantity: g.quantity,
         }))
       );
-      for (const g of giftLines) {
+      for (const g of allGifts) {
         const { data: productData } = await supabase
           .from("products")
           .select("current_stock")
@@ -1570,7 +1596,7 @@ const Orders = () => {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-4 gap-3">
                         <div className="space-y-1">
                           <Label htmlFor={`quantity-${line.product_id}`} className="text-xs">Quantity</Label>
                           <Input
@@ -1582,7 +1608,7 @@ const Orders = () => {
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label htmlFor={`price-${line.product_id}`} className="text-xs">Unit Price ($)</Label>
+                          <Label htmlFor={`price-${line.product_id}`} className="text-xs">Unit Price (₾)</Label>
                           <Input
                             id={`price-${line.product_id}`}
                             type="number"
@@ -1593,9 +1619,21 @@ const Orders = () => {
                           />
                         </div>
                         <div className="space-y-1">
+                          <Label htmlFor={`gift-qty-${line.product_id}`} className="text-xs">🎁 საჩუქარი</Label>
+                          <Input
+                            id={`gift-qty-${line.product_id}`}
+                            type="number"
+                            min="0"
+                            value={line.gift_quantity ?? 0}
+                            onChange={(e) => handleUpdateLineGiftQuantity(line.product_id, parseInt(e.target.value) || 0)}
+                            placeholder="0"
+                          />
+                          <p className="text-[10px] text-muted-foreground leading-tight">ფასში არ ჯდება</p>
+                        </div>
+                        <div className="space-y-1">
                           <Label className="text-xs">Total</Label>
                           <div className="h-10 flex items-center font-bold text-primary">
-                            ${line.line_total.toFixed(2)}
+                            ₾{line.line_total.toFixed(2)}
                           </div>
                         </div>
                       </div>
