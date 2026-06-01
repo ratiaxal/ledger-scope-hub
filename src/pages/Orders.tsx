@@ -25,6 +25,7 @@ interface OrderLine {
   quantity: number;
   unit_price: number;
   line_total: number;
+  gift_quantity?: number;
 }
 
 interface Order {
