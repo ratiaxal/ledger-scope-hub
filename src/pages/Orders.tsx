@@ -437,7 +437,30 @@ const Orders = () => {
     for (const line of orderLines) {
       combined.set(line.product_id, { name: line.product_name, qty: (combined.get(line.product_id)?.qty || 0) + line.quantity });
     }
+    // Build merged gifts: standalone giftLines + per-line gift_quantity
+    const mergedGifts = new Map<string, { product_id: string; product_name: string; quantity: number }>();
     for (const g of giftLines) {
+      mergedGifts.set(g.product_id, { product_id: g.product_id, product_name: g.product_name, quantity: g.quantity });
+    }
+    for (const line of orderLines) {
+      const gq = line.gift_quantity || 0;
+      if (gq <= 0) continue;
+      const existing = mergedGifts.get(line.product_id);
+      mergedGifts.set(line.product_id, {
+        product_id: line.product_id,
+        product_name: line.product_name,
+        quantity: (existing?.quantity || 0) + gq,
+      });
+    }
+    const allGifts = Array.from(mergedGifts.values());
+
+    // Validate stock availability (combined: order lines + gifts)
+    const stockIssues: string[] = [];
+    const combined = new Map<string, { name: string; qty: number }>();
+    for (const line of orderLines) {
+      combined.set(line.product_id, { name: line.product_name, qty: (combined.get(line.product_id)?.qty || 0) + line.quantity });
+    }
+    for (const g of allGifts) {
       combined.set(g.product_id, { name: g.product_name, qty: (combined.get(g.product_id)?.qty || 0) + g.quantity });
     }
     for (const [pid, info] of combined) {
