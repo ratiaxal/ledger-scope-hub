@@ -67,6 +67,16 @@ const Orders = () => {
   });
 
   const [useCustomCompany, setUseCustomCompany] = useState(false);
+
+  // Auto-select current company when inside a company page
+  useEffect(() => {
+    if (companyId && companies.length > 0) {
+      const current = companies.find(c => c.id === companyId);
+      if (current) {
+        setNewOrder(prev => ({ ...prev, company: current.name }));
+      }
+    }
+  }, [companyId, companies]);
   const [clearing, setClearing] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<{
