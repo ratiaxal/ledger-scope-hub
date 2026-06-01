@@ -307,6 +307,7 @@ const Orders = () => {
         quantity: 1,
         unit_price: 0,
         line_total: 0,
+        gift_quantity: 0,
       });
     });
 
