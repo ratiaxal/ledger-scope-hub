@@ -546,15 +546,15 @@ const Orders = () => {
     }
 
     // Insert gift items and deduct their stock (gifts do NOT affect totals/debt/finance)
-    if (giftLines.length > 0) {
+    if (allGifts.length > 0) {
       await supabase.from("order_gifts").insert(
-        giftLines.map((g) => ({
+        allGifts.map((g) => ({
           order_id: orderData.id,
           product_id: g.product_id,
           quantity: g.quantity,
         }))
       );
-      for (const g of giftLines) {
+      for (const g of allGifts) {
         const { data: productData } = await supabase
           .from("products")
           .select("current_stock")
