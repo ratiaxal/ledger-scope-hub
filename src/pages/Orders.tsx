@@ -1258,62 +1258,55 @@ const Orders = () => {
       const orderHoldsStock = oldOrderData.status !== "canceled";
       for (const line of editOrderLines) {
         if (line.quantity !== line.original_quantity) {
-          await supabase
-            .from("order_lines")
-            .update({ quantity: line.quantity })
-            .eq("id", line.id);
+          if (line.quantity === 0) {
+            // Remove the line entirely when quantity is zeroed out
+            await supabase.from("order_lines").delete().eq("id", line.id);
+          } else {
+            await supabase
+              .from("order_lines")
+              .update({ quantity: line.quantity, line_total: line.quantity * line.unit_price })
+              .eq("id", line.id);
+          }
 
-          if (orderHoldsStock) {
-            const diff = line.quantity - line.original_quantity; // positive = more stock taken
-            const { data: pData } = await supabase
+          if (orderHoldsStock && line.product_id) {
+            const diff = line.quantity - line.original_quantity; // negative = restore stock
+            const { data: productData } = await supabase
               .from("products")
-              .select("current_stock, id")
-              .eq("id", (line as any).product_id || undefined)
-              .maybeSingle();
-            // product_id may not be on editOrderLines; fetch via order_lines
-            let productId = (line as any).product_id as string | undefined;
-            if (!productId) {
-              const { data: ol } = await supabase
-                .from("order_lines")
-                .select("product_id")
-                .eq("id", line.id)
-                .single();
-              productId = ol?.product_id;
-            }
-            if (productId) {
-              const { data: productData } = await supabase
+              .select("current_stock")
+              .eq("id", line.product_id)
+              .single();
+            if (productData) {
+              await supabase
                 .from("products")
-                .select("current_stock")
-                .eq("id", productId)
-                .single();
-              if (productData) {
-                await supabase
-                  .from("products")
-                  .update({ current_stock: productData.current_stock - diff })
-                  .eq("id", productId);
-                await supabase.from("inventory_transactions").insert([{
-                  product_id: productId,
-                  change_quantity: -diff,
-                  reason: "correction",
-                  related_order_id: editingOrderId,
-                  comment: "Stock adjusted from order edit",
-                }]);
-              }
+                .update({ current_stock: productData.current_stock - diff })
+                .eq("id", line.product_id);
+              await supabase.from("inventory_transactions").insert([{
+                product_id: line.product_id,
+                change_quantity: -diff,
+                reason: "correction",
+                related_order_id: editingOrderId,
+                comment: line.quantity === 0 ? "Product removed from order (stock restored)" : "Stock adjusted from order edit",
+              }]);
             }
           }
         }
       }
 
-      const newTotalQuantity = editOrderLines.reduce((sum, l) => sum + l.quantity, 0);
+      const remainingLines = editOrderLines.filter((l) => l.quantity > 0);
+      const newTotalQuantity = remainingLines.reduce((sum, l) => sum + l.quantity, 0);
+      const recalculatedTotal = remainingLines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0);
+      // Auto-recalculate total when line quantities changed, unless user manually overrode it to something else
+      const anyQtyChanged = editOrderLines.some((l) => l.quantity !== l.original_quantity);
+      const finalTotalAmount = anyQtyChanged ? recalculatedTotal : totalAmount;
 
       const { error } = await supabase
         .from("orders")
         .update({
-          total_amount: totalAmount,
+          total_amount: finalTotalAmount,
           notes: editOrder.notes || null,
           payment_received_amount: newPaymentReceived,
-          payment_status: newPaymentReceived >= totalAmount ? "paid" : newPaymentReceived > 0 ? "partially_paid" : "unpaid",
-          debt_flag: newPaymentReceived < totalAmount,
+          payment_status: newPaymentReceived >= finalTotalAmount ? "paid" : newPaymentReceived > 0 ? "partially_paid" : "unpaid",
+          debt_flag: newPaymentReceived < finalTotalAmount,
           total_quantity: newTotalQuantity,
         })
         .eq("id", editingOrderId);
