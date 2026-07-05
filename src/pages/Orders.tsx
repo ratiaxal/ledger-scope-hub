@@ -533,28 +533,30 @@ const Orders = () => {
       return;
     }
 
-    // Insert order lines
-    const { error: linesError } = await supabase
-      .from("order_lines")
-      .insert(orderLines.map(line => ({
-        order_id: orderData.id,
-        product_id: line.product_id,
-        quantity: line.quantity,
-        unit_price: line.unit_price,
-        line_total: line.line_total,
-      })));
+    // Insert order lines (skip zero-qty)
+    if (effectiveOrderLines.length > 0) {
+      const { error: linesError } = await supabase
+        .from("order_lines")
+        .insert(effectiveOrderLines.map(line => ({
+          order_id: orderData.id,
+          product_id: line.product_id,
+          quantity: line.quantity,
+          unit_price: line.unit_price,
+          line_total: line.line_total,
+        })));
 
-    if (linesError) {
-      toast({
-        title: "Error adding order items",
-        description: linesError.message,
-        variant: "destructive",
-      });
-      return;
+      if (linesError) {
+        toast({
+          title: "Error adding order items",
+          description: linesError.message,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     // Deduct stock from warehouse immediately when order is created
-    for (const line of orderLines) {
+    for (const line of effectiveOrderLines) {
       const { data: productData } = await supabase
         .from("products")
         .select("current_stock")
