@@ -2143,13 +2143,19 @@ const Orders = () => {
                       <span className="text-sm flex-1 truncate">{line.product_name}</span>
                       <Input
                         type="number"
-                        min="1"
+                        min="0"
                         className="w-20"
                         value={line.quantity}
                         onChange={(e) => {
+                          const raw = e.target.value;
+                          const parsed = raw === "" ? 0 : parseInt(raw);
+                          const qty = isNaN(parsed) || parsed < 0 ? 0 : parsed;
                           const newLines = [...editOrderLines];
-                          newLines[idx] = { ...newLines[idx], quantity: parseInt(e.target.value) || 1 };
+                          newLines[idx] = { ...newLines[idx], quantity: qty };
                           setEditOrderLines(newLines);
+                          // Auto-update total
+                          const newTotal = newLines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0);
+                          setEditOrder((prev) => ({ ...prev, total_amount: String(newTotal) }));
                         }}
                       />
                     </div>
