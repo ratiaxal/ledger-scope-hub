@@ -464,6 +464,7 @@ const Orders = () => {
     const stockIssues: string[] = [];
     const combined = new Map<string, { name: string; qty: number }>();
     for (const line of orderLines) {
+      if (line.quantity <= 0) continue;
       combined.set(line.product_id, { name: line.product_name, qty: (combined.get(line.product_id)?.qty || 0) + line.quantity });
     }
     for (const g of allGifts) {
@@ -472,7 +473,8 @@ const Orders = () => {
     for (const [pid, info] of combined) {
       const product = products.find(p => p.id === pid);
       const stock = product?.current_stock ?? 0;
-      if (info.qty <= 0 || stock <= 0 || info.qty > stock) {
+      if (info.qty <= 0) continue;
+      if (info.qty > stock) {
         stockIssues.push(`${info.name} (მარაგი: ${stock})`);
       }
     }
@@ -480,6 +482,17 @@ const Orders = () => {
       toast({
         title: "მარაგი არ არის საკმარისი",
         description: `შეკვეთა ვერ შეიქმნება: ${stockIssues.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Filter out zero-quantity lines (product removed) — but keep gifts
+    const effectiveOrderLines = orderLines.filter((l) => l.quantity > 0);
+    if (effectiveOrderLines.length === 0 && allGifts.length === 0) {
+      toast({
+        title: "ცარიელი შეკვეთა",
+        description: "მიუთითეთ მინიმუმ ერთი პროდუქტი ან საჩუქარი",
         variant: "destructive",
       });
       return;
