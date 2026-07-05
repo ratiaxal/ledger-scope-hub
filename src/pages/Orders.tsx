@@ -108,7 +108,7 @@ const Orders = () => {
   const [showEditOrderDialog, setShowEditOrderDialog] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState({ total_amount: "", notes: "", payment_received_amount: "" });
-  const [editOrderLines, setEditOrderLines] = useState<{ id: string; product_name: string; quantity: number; original_quantity: number }[]>([]);
+  const [editOrderLines, setEditOrderLines] = useState<{ id: string; product_id: string; product_name: string; quantity: number; original_quantity: number; unit_price: number }[]>([]);
   const [companyNote, setCompanyNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
 
@@ -1210,7 +1210,7 @@ const Orders = () => {
     }
     const { data: linesData } = await supabase
       .from("order_lines")
-      .select("id, quantity, products (name)")
+      .select("id, quantity, unit_price, product_id, products (name)")
       .eq("order_id", orderId);
 
     setEditingOrderId(orderId);
@@ -1222,9 +1222,11 @@ const Orders = () => {
     setEditOrderLines(
       (linesData || []).map((line: any) => ({
         id: line.id,
+        product_id: line.product_id,
         product_name: line.products?.name || "Unknown",
         quantity: line.quantity,
         original_quantity: line.quantity,
+        unit_price: Number(line.unit_price) || 0,
       }))
     );
     setShowEditOrderDialog(true);
@@ -1256,62 +1258,55 @@ const Orders = () => {
       const orderHoldsStock = oldOrderData.status !== "canceled";
       for (const line of editOrderLines) {
         if (line.quantity !== line.original_quantity) {
-          await supabase
-            .from("order_lines")
-            .update({ quantity: line.quantity })
-            .eq("id", line.id);
+          if (line.quantity === 0) {
+            // Remove the line entirely when quantity is zeroed out
+            await supabase.from("order_lines").delete().eq("id", line.id);
+          } else {
+            await supabase
+              .from("order_lines")
+              .update({ quantity: line.quantity, line_total: line.quantity * line.unit_price })
+              .eq("id", line.id);
+          }
 
-          if (orderHoldsStock) {
-            const diff = line.quantity - line.original_quantity; // positive = more stock taken
-            const { data: pData } = await supabase
+          if (orderHoldsStock && line.product_id) {
+            const diff = line.quantity - line.original_quantity; // negative = restore stock
+            const { data: productData } = await supabase
               .from("products")
-              .select("current_stock, id")
-              .eq("id", (line as any).product_id || undefined)
-              .maybeSingle();
-            // product_id may not be on editOrderLines; fetch via order_lines
-            let productId = (line as any).product_id as string | undefined;
-            if (!productId) {
-              const { data: ol } = await supabase
-                .from("order_lines")
-                .select("product_id")
-                .eq("id", line.id)
-                .single();
-              productId = ol?.product_id;
-            }
-            if (productId) {
-              const { data: productData } = await supabase
+              .select("current_stock")
+              .eq("id", line.product_id)
+              .single();
+            if (productData) {
+              await supabase
                 .from("products")
-                .select("current_stock")
-                .eq("id", productId)
-                .single();
-              if (productData) {
-                await supabase
-                  .from("products")
-                  .update({ current_stock: productData.current_stock - diff })
-                  .eq("id", productId);
-                await supabase.from("inventory_transactions").insert([{
-                  product_id: productId,
-                  change_quantity: -diff,
-                  reason: "correction",
-                  related_order_id: editingOrderId,
-                  comment: "Stock adjusted from order edit",
-                }]);
-              }
+                .update({ current_stock: productData.current_stock - diff })
+                .eq("id", line.product_id);
+              await supabase.from("inventory_transactions").insert([{
+                product_id: line.product_id,
+                change_quantity: -diff,
+                reason: "correction",
+                related_order_id: editingOrderId,
+                comment: line.quantity === 0 ? "Product removed from order (stock restored)" : "Stock adjusted from order edit",
+              }]);
             }
           }
         }
       }
 
-      const newTotalQuantity = editOrderLines.reduce((sum, l) => sum + l.quantity, 0);
+      const remainingLines = editOrderLines.filter((l) => l.quantity > 0);
+      const newTotalQuantity = remainingLines.reduce((sum, l) => sum + l.quantity, 0);
+      const recalculatedTotal = remainingLines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0);
+      // Auto-recalculate total when line quantities changed, unless user manually overrode it to something else
+      const anyQtyChanged = editOrderLines.some((l) => l.quantity !== l.original_quantity);
+      const finalTotalAmount = anyQtyChanged ? recalculatedTotal : totalAmount;
 
       const { error } = await supabase
         .from("orders")
         .update({
-          total_amount: totalAmount,
+          total_amount: finalTotalAmount,
           notes: editOrder.notes || null,
           payment_received_amount: newPaymentReceived,
-          payment_status: newPaymentReceived >= totalAmount ? "paid" : newPaymentReceived > 0 ? "partially_paid" : "unpaid",
-          debt_flag: newPaymentReceived < totalAmount,
+          payment_status: newPaymentReceived >= finalTotalAmount ? "paid" : newPaymentReceived > 0 ? "partially_paid" : "unpaid",
+          debt_flag: newPaymentReceived < finalTotalAmount,
           total_quantity: newTotalQuantity,
         })
         .eq("id", editingOrderId);
@@ -2148,13 +2143,19 @@ const Orders = () => {
                       <span className="text-sm flex-1 truncate">{line.product_name}</span>
                       <Input
                         type="number"
-                        min="1"
+                        min="0"
                         className="w-20"
                         value={line.quantity}
                         onChange={(e) => {
+                          const raw = e.target.value;
+                          const parsed = raw === "" ? 0 : parseInt(raw);
+                          const qty = isNaN(parsed) || parsed < 0 ? 0 : parsed;
                           const newLines = [...editOrderLines];
-                          newLines[idx] = { ...newLines[idx], quantity: parseInt(e.target.value) || 1 };
+                          newLines[idx] = { ...newLines[idx], quantity: qty };
                           setEditOrderLines(newLines);
+                          // Auto-update total
+                          const newTotal = newLines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0);
+                          setEditOrder((prev) => ({ ...prev, total_amount: String(newTotal) }));
                         }}
                       />
                     </div>
