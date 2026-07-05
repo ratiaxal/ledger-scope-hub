@@ -350,8 +350,8 @@ const Orders = () => {
   const handleUpdateQuantity = (productId: string, quantity: number) => {
     const product = products.find(p => p.id === productId);
     const stock = product?.current_stock ?? 0;
-    let finalQty = quantity;
-    if (quantity > stock) {
+    let finalQty = quantity < 0 ? 0 : quantity;
+    if (finalQty > stock) {
       finalQty = stock;
       toast({
         title: "მარაგი არ არის საკმარისი",
@@ -365,6 +365,7 @@ const Orders = () => {
         : line
     ));
   };
+
 
   const handleUpdatePrice = (productId: string, price: number) => {
     setOrderLines(orderLines.map(line => 
@@ -463,6 +464,7 @@ const Orders = () => {
     const stockIssues: string[] = [];
     const combined = new Map<string, { name: string; qty: number }>();
     for (const line of orderLines) {
+      if (line.quantity <= 0) continue;
       combined.set(line.product_id, { name: line.product_name, qty: (combined.get(line.product_id)?.qty || 0) + line.quantity });
     }
     for (const g of allGifts) {
@@ -471,7 +473,8 @@ const Orders = () => {
     for (const [pid, info] of combined) {
       const product = products.find(p => p.id === pid);
       const stock = product?.current_stock ?? 0;
-      if (info.qty <= 0 || stock <= 0 || info.qty > stock) {
+      if (info.qty <= 0) continue;
+      if (info.qty > stock) {
         stockIssues.push(`${info.name} (მარაგი: ${stock})`);
       }
     }
@@ -479,6 +482,17 @@ const Orders = () => {
       toast({
         title: "მარაგი არ არის საკმარისი",
         description: `შეკვეთა ვერ შეიქმნება: ${stockIssues.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Filter out zero-quantity lines (product removed) — but keep gifts
+    const effectiveOrderLines = orderLines.filter((l) => l.quantity > 0);
+    if (effectiveOrderLines.length === 0 && allGifts.length === 0) {
+      toast({
+        title: "ცარიელი შეკვეთა",
+        description: "მიუთითეთ მინიმუმ ერთი პროდუქტი ან საჩუქარი",
         variant: "destructive",
       });
       return;
@@ -499,7 +513,7 @@ const Orders = () => {
       .insert([{
         company_id: useCustomCompany && !companyId ? null : selectedCompany?.id,
         manual_company_name: useCustomCompany && !companyId ? newOrder.customCompany : null,
-        total_quantity: orderLines.reduce((sum, line) => sum + line.quantity, 0),
+        total_quantity: effectiveOrderLines.reduce((sum, line) => sum + line.quantity, 0),
         total_amount: orderTotal,
         status: "open",
         payment_received_amount: paymentAmountValue,
@@ -519,28 +533,30 @@ const Orders = () => {
       return;
     }
 
-    // Insert order lines
-    const { error: linesError } = await supabase
-      .from("order_lines")
-      .insert(orderLines.map(line => ({
-        order_id: orderData.id,
-        product_id: line.product_id,
-        quantity: line.quantity,
-        unit_price: line.unit_price,
-        line_total: line.line_total,
-      })));
+    // Insert order lines (skip zero-qty)
+    if (effectiveOrderLines.length > 0) {
+      const { error: linesError } = await supabase
+        .from("order_lines")
+        .insert(effectiveOrderLines.map(line => ({
+          order_id: orderData.id,
+          product_id: line.product_id,
+          quantity: line.quantity,
+          unit_price: line.unit_price,
+          line_total: line.line_total,
+        })));
 
-    if (linesError) {
-      toast({
-        title: "Error adding order items",
-        description: linesError.message,
-        variant: "destructive",
-      });
-      return;
+      if (linesError) {
+        toast({
+          title: "Error adding order items",
+          description: linesError.message,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     // Deduct stock from warehouse immediately when order is created
-    for (const line of orderLines) {
+    for (const line of effectiveOrderLines) {
       const { data: productData } = await supabase
         .from("products")
         .select("current_stock")
@@ -1620,9 +1636,13 @@ const Orders = () => {
                           <Input
                             id={`quantity-${line.product_id}`}
                             type="number"
-                            min="1"
+                            min="0"
                             value={line.quantity}
-                            onChange={(e) => handleUpdateQuantity(line.product_id, parseInt(e.target.value) || 1)}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const parsed = raw === "" ? 0 : parseInt(raw);
+                              handleUpdateQuantity(line.product_id, isNaN(parsed) ? 0 : parsed);
+                            }}
                           />
                         </div>
                         <div className="space-y-1">
