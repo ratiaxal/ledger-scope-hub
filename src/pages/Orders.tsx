@@ -1210,7 +1210,7 @@ const Orders = () => {
     }
     const { data: linesData } = await supabase
       .from("order_lines")
-      .select("id, quantity, products (name)")
+      .select("id, quantity, unit_price, product_id, products (name)")
       .eq("order_id", orderId);
 
     setEditingOrderId(orderId);
@@ -1222,9 +1222,11 @@ const Orders = () => {
     setEditOrderLines(
       (linesData || []).map((line: any) => ({
         id: line.id,
+        product_id: line.product_id,
         product_name: line.products?.name || "Unknown",
         quantity: line.quantity,
         original_quantity: line.quantity,
+        unit_price: Number(line.unit_price) || 0,
       }))
     );
     setShowEditOrderDialog(true);
