@@ -1621,9 +1621,13 @@ const Orders = () => {
                           <Input
                             id={`quantity-${line.product_id}`}
                             type="number"
-                            min="1"
+                            min="0"
                             value={line.quantity}
-                            onChange={(e) => handleUpdateQuantity(line.product_id, parseInt(e.target.value) || 1)}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const parsed = raw === "" ? 0 : parseInt(raw);
+                              handleUpdateQuantity(line.product_id, isNaN(parsed) ? 0 : parsed);
+                            }}
                           />
                         </div>
                         <div className="space-y-1">
