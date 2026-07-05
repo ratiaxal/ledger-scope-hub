@@ -513,7 +513,7 @@ const Orders = () => {
       .insert([{
         company_id: useCustomCompany && !companyId ? null : selectedCompany?.id,
         manual_company_name: useCustomCompany && !companyId ? newOrder.customCompany : null,
-        total_quantity: orderLines.reduce((sum, line) => sum + line.quantity, 0),
+        total_quantity: effectiveOrderLines.reduce((sum, line) => sum + line.quantity, 0),
         total_amount: orderTotal,
         status: "open",
         payment_received_amount: paymentAmountValue,
