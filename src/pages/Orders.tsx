@@ -350,8 +350,8 @@ const Orders = () => {
   const handleUpdateQuantity = (productId: string, quantity: number) => {
     const product = products.find(p => p.id === productId);
     const stock = product?.current_stock ?? 0;
-    let finalQty = quantity;
-    if (quantity > stock) {
+    let finalQty = quantity < 0 ? 0 : quantity;
+    if (finalQty > stock) {
       finalQty = stock;
       toast({
         title: "მარაგი არ არის საკმარისი",
@@ -365,6 +365,7 @@ const Orders = () => {
         : line
     ));
   };
+
 
   const handleUpdatePrice = (productId: string, price: number) => {
     setOrderLines(orderLines.map(line => 
