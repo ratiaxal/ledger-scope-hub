@@ -1313,15 +1313,15 @@ const Orders = () => {
           }
           continue;
         }
+        if (line.quantity === 0 && line.id) {
+          await supabase.from("order_lines").delete().eq("id", line.id);
+        } else if (line.id) {
+          await supabase
+            .from("order_lines")
+            .update({ quantity: line.quantity, unit_price: line.unit_price, line_total: line.quantity * line.unit_price })
+            .eq("id", line.id);
+        }
         if (line.quantity !== line.original_quantity) {
-          if (line.quantity === 0) {
-            if (line.id) await supabase.from("order_lines").delete().eq("id", line.id);
-          } else if (line.id) {
-            await supabase
-              .from("order_lines")
-              .update({ quantity: line.quantity, line_total: line.quantity * line.unit_price })
-              .eq("id", line.id);
-          }
 
           if (orderHoldsStock && line.product_id) {
             const diff = line.quantity - line.original_quantity; // negative = restore stock
