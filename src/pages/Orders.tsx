@@ -108,7 +108,8 @@ const Orders = () => {
   const [showEditOrderDialog, setShowEditOrderDialog] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState({ total_amount: "", notes: "", payment_received_amount: "" });
-  const [editOrderLines, setEditOrderLines] = useState<{ id: string; product_id: string; product_name: string; quantity: number; original_quantity: number; unit_price: number }[]>([]);
+  const [editOrderLines, setEditOrderLines] = useState<{ id: string | null; product_id: string; product_name: string; quantity: number; original_quantity: number; unit_price: number; isNew?: boolean }[]>([]);
+  const [editAddProductId, setEditAddProductId] = useState<string>("");
   const [companyNote, setCompanyNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
 
