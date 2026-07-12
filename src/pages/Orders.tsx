@@ -1273,12 +1273,50 @@ const Orders = () => {
 
       // Update order lines and adjust warehouse stock by quantity diff (only when order holds stock)
       const orderHoldsStock = oldOrderData.status !== "canceled";
+
+      // Stock validation for increases / new lines
       for (const line of editOrderLines) {
+        if (!orderHoldsStock) break;
+        const diff = line.quantity - line.original_quantity;
+        if (diff > 0) {
+          const prod = products.find((p) => p.id === line.product_id);
+          const available = prod?.current_stock ?? 0;
+          if (diff > available) {
+            toast({ title: "არასაკმარისი მარაგი", description: `${line.product_name}: საწყობში დარჩა ${available}`, variant: "destructive" });
+            return;
+          }
+        }
+      }
+
+      for (const line of editOrderLines) {
+        if (line.isNew && line.quantity > 0) {
+          // Insert new order line
+          await supabase.from("order_lines").insert({
+            order_id: editingOrderId,
+            product_id: line.product_id,
+            quantity: line.quantity,
+            unit_price: line.unit_price,
+            line_total: line.quantity * line.unit_price,
+          });
+          if (orderHoldsStock && line.product_id) {
+            const { data: productData } = await supabase.from("products").select("current_stock").eq("id", line.product_id).single();
+            if (productData) {
+              await supabase.from("products").update({ current_stock: productData.current_stock - line.quantity }).eq("id", line.product_id);
+              await supabase.from("inventory_transactions").insert([{
+                product_id: line.product_id,
+                change_quantity: -line.quantity,
+                reason: "order",
+                related_order_id: editingOrderId,
+                comment: "Product added via order edit",
+              }]);
+            }
+          }
+          continue;
+        }
         if (line.quantity !== line.original_quantity) {
           if (line.quantity === 0) {
-            // Remove the line entirely when quantity is zeroed out
-            await supabase.from("order_lines").delete().eq("id", line.id);
-          } else {
+            if (line.id) await supabase.from("order_lines").delete().eq("id", line.id);
+          } else if (line.id) {
             await supabase
               .from("order_lines")
               .update({ quantity: line.quantity, line_total: line.quantity * line.unit_price })
@@ -1312,9 +1350,9 @@ const Orders = () => {
       const remainingLines = editOrderLines.filter((l) => l.quantity > 0);
       const newTotalQuantity = remainingLines.reduce((sum, l) => sum + l.quantity, 0);
       const recalculatedTotal = remainingLines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0);
-      // Auto-recalculate total when line quantities changed, unless user manually overrode it to something else
-      const anyQtyChanged = editOrderLines.some((l) => l.quantity !== l.original_quantity);
-      const finalTotalAmount = anyQtyChanged ? recalculatedTotal : totalAmount;
+      // Auto-recalculate total when line quantities changed or new lines added
+      const anyLineChanged = editOrderLines.some((l) => l.isNew || l.quantity !== l.original_quantity);
+      const finalTotalAmount = anyLineChanged ? recalculatedTotal : totalAmount;
 
       const { error } = await supabase
         .from("orders")
