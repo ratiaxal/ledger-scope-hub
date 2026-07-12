@@ -116,6 +116,7 @@ const Orders = () => {
   useEffect(() => {
     fetchProducts();
     fetchOrders();
+    fetchProducts();
     fetchCompanies();
     if (companyId) fetchCompanyNote();
   }, [companyId]);
@@ -262,6 +263,7 @@ const Orders = () => {
       });
       
       fetchOrders();
+      fetchProducts();
     } catch (error) {
       toast({
         title: "Error",
@@ -628,6 +630,7 @@ const Orders = () => {
     setUseCustomCompany(false);
     fetchOrders();
     fetchProducts();
+    fetchProducts();
   };
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: "open" | "completed" | "canceled") => {
@@ -710,6 +713,7 @@ const Orders = () => {
 
       toast({ title: "Order status updated successfully" });
       fetchOrders();
+      fetchProducts();
     } catch (error) {
       toast({
         title: "Error updating order",
@@ -829,6 +833,7 @@ const Orders = () => {
 
       toast({ title: "შეკვეთა წაიშალა და მარაგი აღდგა" });
       fetchOrders();
+      fetchProducts();
     } catch (error) {
       toast({
         title: "Error deleting order",
@@ -1023,6 +1028,7 @@ const Orders = () => {
       setSelectedOrderForReturn(null);
       setReturnLines([]);
       fetchOrders();
+      fetchProducts();
     } catch (error) {
       toast({
         title: "Error processing return",
@@ -1123,6 +1129,7 @@ const Orders = () => {
       setLaterPaymentAmount("");
       setLaterPaymentMethod("");
       fetchOrders();
+      fetchProducts();
     } catch (error) {
       toast({
         title: "შეცდომა გადახდის რეგისტრაციისას",
@@ -1218,6 +1225,7 @@ const Orders = () => {
     setPaymentAmount("");
     setPaymentMethod("");
     fetchOrders();
+    fetchProducts();
   };
 
   const handleEditOrder = async (orderId: string) => {
@@ -1402,6 +1410,7 @@ const Orders = () => {
       setEditingOrderId(null);
       setEditOrderLines([]);
       fetchOrders();
+      fetchProducts();
     } catch (error) {
       toast({ title: "შეცდომა", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
     }
