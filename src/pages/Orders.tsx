@@ -630,7 +630,6 @@ const Orders = () => {
     setUseCustomCompany(false);
     fetchOrders();
     fetchProducts();
-    fetchProducts();
   };
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: "open" | "completed" | "canceled") => {
