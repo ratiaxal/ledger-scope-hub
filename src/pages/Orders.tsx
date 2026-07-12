@@ -627,6 +627,7 @@ const Orders = () => {
     setShowForm(false);
     setUseCustomCompany(false);
     fetchOrders();
+    fetchProducts();
   };
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: "open" | "completed" | "canceled") => {
