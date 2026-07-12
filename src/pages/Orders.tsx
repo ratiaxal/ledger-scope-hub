@@ -2209,6 +2209,22 @@ const Orders = () => {
                       </span>
                       <Input
                         type="number"
+                        step="0.01"
+                        min="0"
+                        className="w-24"
+                        placeholder="ფასი"
+                        value={line.unit_price}
+                        onChange={(e) => {
+                          const price = parseFloat(e.target.value) || 0;
+                          const newLines = [...editOrderLines];
+                          newLines[idx] = { ...newLines[idx], unit_price: price };
+                          setEditOrderLines(newLines);
+                          const newTotal = newLines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0);
+                          setEditOrder((prev) => ({ ...prev, total_amount: String(newTotal) }));
+                        }}
+                      />
+                      <Input
+                        type="number"
                         min="0"
                         max={maxQty}
                         className="w-20"
