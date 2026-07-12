@@ -2197,28 +2197,84 @@ const Orders = () => {
               <div className="space-y-2">
                 <Label>პროდუქტები და რაოდენობა</Label>
                 <div className="space-y-2 border rounded-md p-3">
-                  {editOrderLines.map((line, idx) => (
-                    <div key={line.id} className="flex items-center justify-between gap-2">
-                      <span className="text-sm flex-1 truncate">{line.product_name}</span>
+                  {editOrderLines.map((line, idx) => {
+                    const prod = products.find((p) => p.id === line.product_id);
+                    const available = prod?.current_stock ?? 0;
+                    const maxQty = available + line.original_quantity;
+                    return (
+                    <div key={line.id ?? `new-${idx}`} className="flex items-center justify-between gap-2">
+                      <span className="text-sm flex-1 truncate">
+                        {line.product_name}
+                        <span className="text-xs text-muted-foreground ml-2">(მარაგი: {available})</span>
+                      </span>
                       <Input
                         type="number"
                         min="0"
+                        max={maxQty}
                         className="w-20"
                         value={line.quantity}
                         onChange={(e) => {
                           const raw = e.target.value;
                           const parsed = raw === "" ? 0 : parseInt(raw);
-                          const qty = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+                          let qty = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+                          if (qty > maxQty) {
+                            qty = maxQty;
+                            toast({ title: "მარაგი ამოწურულია", description: `მაქს. ${maxQty}`, variant: "destructive" });
+                          }
                           const newLines = [...editOrderLines];
                           newLines[idx] = { ...newLines[idx], quantity: qty };
                           setEditOrderLines(newLines);
-                          // Auto-update total
                           const newTotal = newLines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0);
                           setEditOrder((prev) => ({ ...prev, total_amount: String(newTotal) }));
                         }}
                       />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const newLines = editOrderLines.filter((_, i) => i !== idx);
+                          setEditOrderLines(newLines);
+                          const newTotal = newLines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0);
+                          setEditOrder((prev) => ({ ...prev, total_amount: String(newTotal) }));
+                        }}
+                      >✕</Button>
                     </div>
-                  ))}
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2 items-center">
+                  <Select value={editAddProductId} onValueChange={setEditAddProductId}>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="დაამატე პროდუქტი" /></SelectTrigger>
+                    <SelectContent>
+                      {products
+                        .filter((p) => (p.current_stock ?? 0) > 0 && !editOrderLines.some((l) => l.product_id === p.id))
+                        .map((p) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name} (მარაგი: {p.current_stock})</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      if (!editAddProductId) return;
+                      const p = products.find((pr) => pr.id === editAddProductId);
+                      if (!p) return;
+                      const newLine = {
+                        id: null,
+                        product_id: p.id,
+                        product_name: p.name,
+                        quantity: 1,
+                        original_quantity: 0,
+                        unit_price: (p as any).price ?? 0,
+                        isNew: true,
+                      };
+                      const newLines = [...editOrderLines, newLine];
+                      setEditOrderLines(newLines);
+                      setEditAddProductId("");
+                      const newTotal = newLines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0);
+                      setEditOrder((prev) => ({ ...prev, total_amount: String(newTotal) }));
+                    }}
+                  >დამატება</Button>
                 </div>
               </div>
             )}
