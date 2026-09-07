@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fetchLabels, consumeLabels, setLabelQuantity, type LabelRow } from "@/lib/labels";
+import { fetchLabels, consumeLabels, returnLabels, setLabelQuantity, type LabelRow } from "@/lib/labels";
 
 interface Product {
   id: string;
@@ -235,6 +235,9 @@ const Warehouse = () => {
         warehouse_id: selectedWarehouse,
       }]);
 
+    await returnLabels(reduceProduct.name, quantity, "ხელით შემცირება (-)");
+    loadLabels();
+
     toast({
       title: "მარაგი შემცირდა",
       description: `${quantity} ერთეული ამოღებულია`,
@@ -318,9 +321,6 @@ const Warehouse = () => {
       description: `"${productName}" (${quantity} ცალი) წარმატებით დაემატა საწყობში`
     });
 
-    await consumeLabels(productName, quantity, "ახალი პროდუქტის შეტანა");
-    loadLabels();
-
     setSharedProduct({ name: "", color: "", quantity: "1" });
     setShowSharedProductForm(false);
     fetchProducts();
@@ -342,11 +342,6 @@ const Warehouse = () => {
     if (error) {
       toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
     } else {
-      const increase = currentStock - editingProduct.current_stock;
-      if (increase > 0) {
-        await consumeLabels(editProduct.name.trim(), increase, "რედაქტირებით შეტანა");
-      }
-      loadLabels();
       toast({ title: "პროდუქტი განახლდა" });
       setShowEditProductDialog(false);
       setEditingProduct(null);
