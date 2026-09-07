@@ -235,6 +235,9 @@ const Warehouse = () => {
         warehouse_id: selectedWarehouse,
       }]);
 
+    await returnLabels(reduceProduct.name, quantity, "ხელით შემცირება (-)");
+    loadLabels();
+
     toast({
       title: "მარაგი შემცირდა",
       description: `${quantity} ერთეული ამოღებულია`,
@@ -342,11 +345,6 @@ const Warehouse = () => {
     if (error) {
       toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
     } else {
-      const increase = currentStock - editingProduct.current_stock;
-      if (increase > 0) {
-        await consumeLabels(editProduct.name.trim(), increase, "რედაქტირებით შეტანა");
-      }
-      loadLabels();
       toast({ title: "პროდუქტი განახლდა" });
       setShowEditProductDialog(false);
       setEditingProduct(null);
