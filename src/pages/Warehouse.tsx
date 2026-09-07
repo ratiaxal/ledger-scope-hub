@@ -171,6 +171,11 @@ const Warehouse = () => {
       return;
     }
 
+    if (change > 0) {
+      await consumeLabels(product.name, newStock - product.current_stock, "საწყობში შეტანა (+)");
+      loadLabels();
+    }
+
     fetchProducts();
   };
 
