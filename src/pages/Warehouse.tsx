@@ -74,6 +74,7 @@ const Warehouse = () => {
 
   useEffect(() => {
     fetchWarehouses();
+    loadLabels();
   }, []);
 
   useEffect(() => {
