@@ -318,6 +318,9 @@ const Warehouse = () => {
       description: `"${productName}" (${quantity} ცალი) წარმატებით დაემატა საწყობში`
     });
 
+    await consumeLabels(productName, quantity, "ახალი პროდუქტის შეტანა");
+    loadLabels();
+
     setSharedProduct({ name: "", color: "", quantity: "1" });
     setShowSharedProductForm(false);
     fetchProducts();
