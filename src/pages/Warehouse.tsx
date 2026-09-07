@@ -49,6 +49,28 @@ const Warehouse = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editProduct, setEditProduct] = useState({ name: "", current_stock: "" });
   const [searchQuery, setSearchQuery] = useState("");
+  const [labels, setLabels] = useState<LabelRow[]>([]);
+  const [labelEdits, setLabelEdits] = useState<Record<string, string>>({});
+
+  const loadLabels = async () => {
+    setLabels(await fetchLabels());
+  };
+
+  const labelQty = (name: string) => labels.find((l) => l.name === name)?.quantity ?? 0;
+
+  const handleSaveLabelQty = async (name: string) => {
+    const raw = labelEdits[name];
+    if (raw === undefined) return;
+    const value = parseInt(raw);
+    if (isNaN(value) || value < 0) return;
+    await setLabelQuantity(name, value);
+    setLabelEdits((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+    loadLabels();
+  };
 
   useEffect(() => {
     fetchWarehouses();
