@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { fetchLabels, consumeLabels, setLabelQuantity, type LabelRow } from "@/lib/labels";
 
 interface Product {
   id: string;
@@ -48,9 +49,32 @@ const Warehouse = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editProduct, setEditProduct] = useState({ name: "", current_stock: "" });
   const [searchQuery, setSearchQuery] = useState("");
+  const [labels, setLabels] = useState<LabelRow[]>([]);
+  const [labelEdits, setLabelEdits] = useState<Record<string, string>>({});
+
+  const loadLabels = async () => {
+    setLabels(await fetchLabels());
+  };
+
+  const labelQty = (name: string) => labels.find((l) => l.name === name)?.quantity ?? 0;
+
+  const handleSaveLabelQty = async (name: string) => {
+    const raw = labelEdits[name];
+    if (raw === undefined) return;
+    const value = parseInt(raw);
+    if (isNaN(value) || value < 0) return;
+    await setLabelQuantity(name, value);
+    setLabelEdits((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+    loadLabels();
+  };
 
   useEffect(() => {
     fetchWarehouses();
+    loadLabels();
   }, []);
 
   useEffect(() => {
@@ -145,6 +169,11 @@ const Warehouse = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    if (change > 0) {
+      await consumeLabels(product.name, newStock - product.current_stock, "საწყობში შეტანა (+)");
+      loadLabels();
     }
 
     fetchProducts();
@@ -289,6 +318,9 @@ const Warehouse = () => {
       description: `"${productName}" (${quantity} ცალი) წარმატებით დაემატა საწყობში`
     });
 
+    await consumeLabels(productName, quantity, "ახალი პროდუქტის შეტანა");
+    loadLabels();
+
     setSharedProduct({ name: "", color: "", quantity: "1" });
     setShowSharedProductForm(false);
     fetchProducts();
@@ -310,6 +342,11 @@ const Warehouse = () => {
     if (error) {
       toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
     } else {
+      const increase = currentStock - editingProduct.current_stock;
+      if (increase > 0) {
+        await consumeLabels(editProduct.name.trim(), increase, "რედაქტირებით შეტანა");
+      }
+      loadLabels();
       toast({ title: "პროდუქტი განახლდა" });
       setShowEditProductDialog(false);
       setEditingProduct(null);
@@ -540,7 +577,19 @@ const Warehouse = () => {
                           <div className="text-2xl font-bold">
                             {product.current_stock}
                           </div>
-                          <div className="text-xs text-muted-foreground">units</div>
+                          <div className="text-xs text-muted-foreground">ერთეული</div>
+                        </div>
+                        <div className="text-center">
+                          <Input
+                            type="number"
+                            min="0"
+                            className="h-9 w-20 text-center text-lg font-bold"
+                            value={labelEdits[product.name] ?? String(labelQty(product.name))}
+                            onChange={(e) => setLabelEdits({ ...labelEdits, [product.name]: e.target.value })}
+                            onBlur={() => handleSaveLabelQty(product.name)}
+                            onKeyDown={(e) => { if (e.key === "Enter") handleSaveLabelQty(product.name); }}
+                          />
+                          <div className="text-xs text-muted-foreground mt-1">🏷 ეტიკეტი</div>
                         </div>
                         <div className="flex flex-wrap gap-1 sm:gap-2">
                           <Button
