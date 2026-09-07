@@ -42,6 +42,21 @@ export const setLabelQuantity = async (name: string, quantity: number) => {
   }
 };
 
+/** Return labels when stock is manually removed from the main warehouse. */
+export const returnLabels = async (name: string, quantity: number, comment = "ხელით შემცირება") => {
+  if (quantity <= 0) return;
+  const label = await ensureLabel(name);
+  if (!label) return;
+  await db.from("labels").update({ quantity: label.quantity + quantity, updated_at: new Date().toISOString() }).eq("id", label.id);
+  await db.from("label_transactions").insert([{
+    label_id: label.id,
+    label_name: name,
+    change_quantity: quantity,
+    reason: "warehouse_reduce",
+    comment,
+  }]);
+};
+
 /**
  * Consume labels when stock is ADDED to the main warehouse.
  * Never increases label quantity.
