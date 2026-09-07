@@ -577,7 +577,19 @@ const Warehouse = () => {
                           <div className="text-2xl font-bold">
                             {product.current_stock}
                           </div>
-                          <div className="text-xs text-muted-foreground">units</div>
+                          <div className="text-xs text-muted-foreground">ერთეული</div>
+                        </div>
+                        <div className="text-center">
+                          <Input
+                            type="number"
+                            min="0"
+                            className="h-9 w-20 text-center text-lg font-bold"
+                            value={labelEdits[product.name] ?? String(labelQty(product.name))}
+                            onChange={(e) => setLabelEdits({ ...labelEdits, [product.name]: e.target.value })}
+                            onBlur={() => handleSaveLabelQty(product.name)}
+                            onKeyDown={(e) => { if (e.key === "Enter") handleSaveLabelQty(product.name); }}
+                          />
+                          <div className="text-xs text-muted-foreground mt-1">🏷 ეტიკეტი</div>
                         </div>
                         <div className="flex flex-wrap gap-1 sm:gap-2">
                           <Button
