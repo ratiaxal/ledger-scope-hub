@@ -334,19 +334,43 @@ const Warehouse = () => {
 
   const handleSaveEditProduct = async () => {
     if (!editingProduct || !editProduct.name.trim()) return;
-    const currentStock = parseInt(editProduct.current_stock) || 0;
+    const currentStock = Math.max(0, parseInt(editProduct.current_stock) || 0);
+    const newName = editProduct.name.trim();
+    const oldName = editingProduct.name;
+    const delta = currentStock - editingProduct.current_stock;
     const { error } = await supabase
       .from("products")
-      .update({ name: editProduct.name.trim(), current_stock: currentStock })
+      .update({ name: newName, current_stock: currentStock })
       .eq("id", editingProduct.id);
     if (error) {
       toast({ title: "შეცდომა", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "პროდუქტი განახლდა" });
-      setShowEditProductDialog(false);
-      setEditingProduct(null);
-      fetchProducts();
+      return;
     }
+
+    // Keep the label linked when the product is renamed
+    if (newName !== oldName) {
+      const oldLabel = labels.find((l) => l.name === oldName);
+      const newLabelExists = labels.some((l) => l.name === newName);
+      if (oldLabel && !newLabelExists) {
+        await (supabase as any)
+          .from("labels")
+          .update({ name: newName, updated_at: new Date().toISOString() })
+          .eq("id", oldLabel.id);
+      }
+    }
+
+    // Any stock difference from editing is mirrored on labels
+    if (delta > 0) {
+      await consumeLabels(newName, delta, "პროდუქტის რედაქტირება (მარაგის ზრდა)");
+    } else if (delta < 0) {
+      await returnLabels(newName, -delta, "პროდუქტის რედაქტირება (მარაგის შემცირება)");
+    }
+
+    toast({ title: "პროდუქტი განახლდა" });
+    setShowEditProductDialog(false);
+    setEditingProduct(null);
+    fetchProducts();
+    loadLabels();
   };
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
