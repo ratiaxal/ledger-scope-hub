@@ -45,6 +45,8 @@ const Warehouse = () => {
   });
   const holdIntervalRef = useRef<number | null>(null);
   const holdTimeoutRef = useRef<number | null>(null);
+  const stockQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingOpsRef = useRef(0);
   const [showEditProductDialog, setShowEditProductDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editProduct, setEditProduct] = useState({ name: "", current_stock: "" });
@@ -151,32 +153,59 @@ const Warehouse = () => {
     }
   };
 
-  const handleUpdateStock = async (id: string, change: number) => {
+  const handleUpdateStock = (id: string, change: number) => {
     const product = products.find(p => p.id === id);
     if (!product) return;
+    const productName = product.name;
 
-    const newStock = Math.max(0, product.current_stock + change);
+    // Optimistic UI update for stock and label counters
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, current_stock: Math.max(0, p.current_stock + change) } : p));
+    setLabels(prev => prev.map(l => {
+      if (l.name !== productName) return l;
+      return { ...l, quantity: change > 0 ? Math.max(0, l.quantity - change) : l.quantity - change };
+    }));
 
-    const { error: stockError } = await supabase
-      .from("products")
-      .update({ current_stock: newStock })
-      .eq("id", id);
+    pendingOpsRef.current += 1;
+    // Serialize operations so rapid +/- clicks never race each other
+    stockQueueRef.current = stockQueueRef.current
+      .then(async () => {
+        const { data: fresh, error: readError } = await supabase
+          .from("products")
+          .select("current_stock, name")
+          .eq("id", id)
+          .maybeSingle();
+        if (readError || !fresh) throw readError || new Error("Product not found");
 
-    if (stockError) {
-      toast({
-        title: "Error updating stock",
-        description: stockError.message,
-        variant: "destructive",
+        const newStock = Math.max(0, fresh.current_stock + change);
+        const delta = newStock - fresh.current_stock;
+        if (delta === 0) return;
+
+        const { error: stockError } = await supabase
+          .from("products")
+          .update({ current_stock: newStock })
+          .eq("id", id);
+        if (stockError) throw stockError;
+
+        if (delta > 0) {
+          await consumeLabels(fresh.name, delta, "საწყობში შეტანა (+)");
+        } else {
+          await returnLabels(fresh.name, -delta, "ხელით შემცირება (−)");
+        }
+      })
+      .catch((err: any) => {
+        toast({
+          title: "Error updating stock",
+          description: err?.message || String(err),
+          variant: "destructive",
+        });
+      })
+      .finally(() => {
+        pendingOpsRef.current -= 1;
+        if (pendingOpsRef.current === 0) {
+          fetchProducts();
+          loadLabels();
+        }
       });
-      return;
-    }
-
-    if (change > 0) {
-      await consumeLabels(product.name, newStock - product.current_stock, "საწყობში შეტანა (+)");
-      loadLabels();
-    }
-
-    fetchProducts();
   };
 
   const handleManualReduce = async () => {
