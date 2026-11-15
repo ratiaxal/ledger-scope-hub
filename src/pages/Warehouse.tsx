@@ -140,6 +140,7 @@ const Warehouse = () => {
       .from("products")
       .select("*")
       .eq("warehouse_id", selectedWarehouse)
+      .eq("is_deleted", false)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -305,6 +306,7 @@ const Warehouse = () => {
       .from("products")
       .select("*")
       .eq("warehouse_id", selectedWarehouse)
+      .eq("is_deleted", false)
       .eq("name", productName);
 
     if (checkError) {
@@ -403,21 +405,26 @@ const Warehouse = () => {
   };
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
+    handleStopHold();
+    await stockQueueRef.current;
     const { error } = await supabase
       .from("products")
-      .delete()
-      .eq("id", productId);
+      .update({ is_deleted: true })
+      .eq("id", productId)
+      .select("id")
+      .single();
 
     if (error) {
       toast({
-        title: "Error deleting product",
+        title: "პროდუქტი ვერ წაიშალა",
         description: error.message,
         variant: "destructive",
       });
     } else {
+      setProducts((previous) => previous.filter((product) => product.id !== productId));
       toast({ 
-        title: "Product deleted", 
-        description: `${productName} has been permanently removed from the system` 
+        title: "პროდუქტი წაიშალა", 
+        description: `${productName} ამოღებულია საწყობიდან` 
       });
       fetchProducts();
     }
@@ -682,6 +689,8 @@ const Warehouse = () => {
                             variant="ghost"
                             size="sm"
                             className="text-muted-foreground hover:text-destructive"
+                            aria-label={`${product.name} — წაშლა`}
+                            title="წაშლა"
                             onClick={() => handleDeleteProduct(product.id, product.name)}
                           >
                             <Trash2 className="h-4 w-4" />

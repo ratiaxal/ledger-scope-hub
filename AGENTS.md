@@ -1,0 +1,2 @@
+## Product removal
+- Remove warehouse products by setting `products.is_deleted`; filter active warehouse and order-selection queries by this flag, while retaining historical joins so deletion never destroys order totals, gifts, or product names.
