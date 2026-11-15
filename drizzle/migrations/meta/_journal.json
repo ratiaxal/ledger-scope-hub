@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794731130378,
+      "tag": "0000_allow_warehouse_product_removal_preserving_orders",
+      "breakpoints": true
+    }
+  ]
+}

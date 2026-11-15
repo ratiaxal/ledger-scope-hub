@@ -1,0 +1,2 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_deleted boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.products.is_deleted IS 'Removed from active warehouse and order selection; retained only to preserve historical order references.';
